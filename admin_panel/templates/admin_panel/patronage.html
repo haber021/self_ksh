@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patronage Settings | Cooperative Store</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --dark: #0f172a;
+      --brand: #1f7a3a;
+      --accent: #0b5f3a;
+      --muted: #94a3b8;
+      --panel: #ffffff;
+      --gradient: linear-gradient(135deg, #1f7a3a 0%, #0b5f3a 40%, #0d9488 100%);
+    }
+
+    body {
+      background: #f1f5f9;
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    }
+
+    .super-nav {
+      background: var(--dark);
+      color: #fff;
+      box-shadow: 0 10px 30px rgba(15,23,42,0.4);
+    }
+
+    .nav-pill {
+      border-radius: 999px;
+      padding: 8px 18px;
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+    }
+
+    .nav-pill.active, .nav-pill:hover {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+    }
+
+    .hero-card {
+      background: var(--gradient);
+      color: #fff;
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: 0 25px 55px rgba(15,23,42,0.35);
+    }
+
+    .stat-card {
+      border: none;
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 18px 36px rgba(15,23,42,0.08);
+      background: var(--panel);
+      height: 100%;
+    }
+
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      color: #fff;
+    }
+
+    .stat-title {
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .table-card {
+      border-radius: 20px;
+      padding: 20px;
+      background: var(--panel);
+      box-shadow: 0 15px 30px rgba(15,23,42,0.07);
+    }
+
+    .table-card table {
+      font-size: 0.9rem;
+    }
+
+    .table-card thead {
+      color: var(--muted);
+      text-transform: uppercase;
+      font-size: 0.75rem;
+    }
+
+    .rate-display {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--brand);
+    }
+
+    .rate-input {
+      max-width: 150px;
+    }
+
+    .edit-mode .rate-display {
+      display: none;
+    }
+
+    .edit-mode .rate-input-group {
+      display: flex;
+    }
+
+    .rate-input-group {
+      display: none;
+    }
+
+    .badge-status {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.75rem;
+    }
+
+    .status-active {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .status-inactive {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar super-nav navbar-expand-lg py-3">
+    <div class="container-fluid px-4">
+      <a class="navbar-brand fw-bold text-white" href="{% url 'dashboard' %}">
+        <i class="bi bi-shield-lock-fill me-2"></i>Super Admin
+      </a>
+      <form method="post" action="{% url 'admin_logout' %}" style="display: inline;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger rounded-pill px-4">
+          <i class="bi bi-box-arrow-right me-1"></i>Logout
+        </button>
+      </form>
+    </div>
+  </nav>
+
+  <main class="container-fluid px-4 py-5">
+    <section class="hero-card mb-4">
+      <div class="row align-items-center">
+        <div class="col-lg-8">
+          <p class="mb-2 text-uppercase fw-semibold" style="letter-spacing:0.2em;">Patronage Settings</p>
+          <h1 class="fw-bold mb-2">Member Type Patronage Rates</h1>
+          <p class="mb-0 lead text-white-50">
+            Configure patronage rates for different member types. Patronage is calculated as a percentage of transaction subtotals.
+          </p>
+        </div>
+        <div class="col-lg-4 text-end">
+          <a href="{% url 'dashboard' %}" class="btn btn-light rounded-pill px-4">
+            <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <div class="d-flex gap-2 flex-wrap mb-4">
+      <a href="{% url 'dashboard' %}" class="btn btn-outline-success rounded-pill px-4"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a>
+      <a href="{% url 'inventory_management' %}" class="btn btn-outline-success rounded-pill px-4"><i class="bi bi-box-seam me-1"></i> Inventory</a>
+      <a href="{% url 'member_management' %}" class="btn btn-outline-success rounded-pill px-4"><i class="bi bi-people-fill me-1"></i> Members</a>
+      <a href="{% url 'transaction_history' %}" class="btn btn-outline-success rounded-pill px-4"><i class="bi bi-receipt me-1"></i> Transactions</a>
+      <a href="{% url 'patronage_settings' %}" class="btn btn-success rounded-pill px-4 active"><i class="bi bi-percent me-1"></i> Patronage</a>
+    </div>
+
+    <section class="row g-4 mb-4">
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="d-flex align-items-center gap-3">
+            <div class="stat-icon" style="background:#1f7a3a;">
+              <i class="bi bi-tags"></i>
+            </div>
+            <div>
+              <div class="stat-title">Total Member Types</div>
+              <h3 class="mb-0">{{ member_types.count }}</h3>
+              <small class="text-muted">All types</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="d-flex align-items-center gap-3">
+            <div class="stat-icon" style="background:#059669;">
+              <i class="bi bi-check-circle"></i>
+            </div>
+            <div>
+              <div class="stat-title">Active Types</div>
+              <h3 class="mb-0">{{ member_types|length|add:"0" }}</h3>
+              <small class="text-muted">Currently active</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="d-flex align-items-center gap-3">
+            <div class="stat-icon" style="background:#6366f1;">
+              <i class="bi bi-percent"></i>
+            </div>
+            <div>
+              <div class="stat-title">Average Rate</div>
+              <h3 class="mb-0">
+                {% if member_types %}
+                  {% widthratio member_types|length 1 1 as total %}
+                  {% for mt in member_types %}
+                    {% if forloop.first %}
+                      {% widthratio mt.patronage_rate 1 100 as rate %}
+                    {% endif %}
+                  {% endfor %}
+                  {{ rate|floatformat:2 }}%
+                {% else %}
+                  N/A
+                {% endif %}
+              </h3>
+              <small class="text-muted">Patronage rate</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="row g-4">
+      <div class="col-12">
+        <div class="table-card">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Member Types & Patronage Rates</h5>
+            <div class="d-flex gap-2">
+              <a href="/admin/members/membertype/add/" class="btn btn-success btn-sm rounded-pill">
+                <i class="bi bi-plus-circle me-1"></i>Add Member Type
+              </a>
+              <a href="/admin/members/membertype/" class="btn btn-outline-secondary btn-sm rounded-pill">
+                <i class="bi bi-gear me-1"></i>Manage in Admin
+              </a>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th>Member Type</th>
+                  <th>Description</th>
+                  <th>Patronage Rate</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for member_type in member_types %}
+                <tr id="row-{{ member_type.id }}" data-member-type-id="{{ member_type.id }}">
+                  <td>
+                    <div class="fw-semibold">{{ member_type.name }}</div>
+                  </td>
+                  <td>
+                    <small class="text-muted">
+                      {% if member_type.description %}
+                        {{ member_type.description|truncatewords:15 }}
+                      {% else %}
+                        <em>No description</em>
+                      {% endif %}
+                    </small>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="rate-display" id="rate-display-{{ member_type.id }}" data-rate="{{ member_type.patronage_rate }}">
+                        {{ member_type.patronage_rate|floatformat:4 }} 
+                        <small class="text-muted">(<span id="rate-percent-{{ member_type.id }}"></span>%)</small>
+                      </span>
+                      <div class="rate-input-group">
+                        <div class="input-group rate-input">
+                          <input type="number" 
+                                 class="form-control form-control-sm" 
+                                 id="rate-input-{{ member_type.id }}"
+                                 value="{{ member_type.patronage_rate|floatformat:4 }}"
+                                 step="0.0001"
+                                 min="0"
+                                 max="1">
+                          <button class="btn btn-success btn-sm" 
+                                  onclick="saveRate({{ member_type.id }})"
+                                  id="save-btn-{{ member_type.id }}">
+                            <i class="bi bi-check"></i>
+                          </button>
+                          <button class="btn btn-secondary btn-sm" 
+                                  onclick="cancelEdit({{ member_type.id }})"
+                                  id="cancel-btn-{{ member_type.id }}">
+                            <i class="bi bi-x"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    {% if member_type.is_active %}
+                    <span class="badge-status status-active">
+                      <i class="bi bi-check-circle me-1"></i>Active
+                    </span>
+                    {% else %}
+                    <span class="badge-status status-inactive">
+                      <i class="bi bi-x-circle me-1"></i>Inactive
+                    </span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <small class="text-muted">{{ member_type.created_at|date:"M d, Y" }}</small>
+                  </td>
+                  <td>
+                    <div class="d-flex gap-1">
+                      <button type="button" 
+                              class="btn btn-sm btn-outline-primary rounded-pill" 
+                              onclick="editRate({{ member_type.id }})"
+                              id="edit-btn-{{ member_type.id }}">
+                        <i class="bi bi-pencil"></i> Edit Rate
+                      </button>
+                      <a href="/admin/members/membertype/{{ member_type.id }}/change/" 
+                         class="btn btn-sm btn-outline-secondary rounded-pill" 
+                         title="Edit in Admin">
+                        <i class="bi bi-gear"></i>
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="6" class="text-center text-muted py-4">
+                    <i class="bi bi-inbox me-2"></i>No member types found. 
+                    <a href="/admin/members/membertype/add/">Add your first member type</a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="alert alert-info mt-4">
+      <i class="bi bi-info-circle me-2"></i>
+      <strong>Note:</strong> Patronage rates are stored as decimals (e.g., 0.05 = 5%). 
+      When a member makes a purchase, the patronage amount is calculated as: <code>subtotal × patronage_rate</code>.
+      Changes to patronage rates will only affect future transactions.
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Calculate and display percentages on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      {% for member_type in member_types %}
+      const rate{{ member_type.id }} = parseFloat({{ member_type.patronage_rate }});
+      const percent{{ member_type.id }} = (rate{{ member_type.id }} * 100).toFixed(2);
+      document.getElementById('rate-percent-{{ member_type.id }}').textContent = percent{{ member_type.id }};
+      {% endfor %}
+    });
+
+    function getCsrfToken() {
+      const token = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+      if (token) return token;
+      const name = 'csrftoken';
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+        const [key, value] = cookie.trim().split('=');
+        if (key === name) return value;
+      }
+      return '';
+    }
+
+    const csrftoken = getCsrfToken();
+
+    function editRate(memberTypeId) {
+      const row = document.getElementById(`row-${memberTypeId}`);
+      row.classList.add('edit-mode');
+      
+      const editBtn = document.getElementById(`edit-btn-${memberTypeId}`);
+      editBtn.style.display = 'none';
+    }
+
+    function cancelEdit(memberTypeId) {
+      const row = document.getElementById(`row-${memberTypeId}`);
+      row.classList.remove('edit-mode');
+      
+      const editBtn = document.getElementById(`edit-btn-${memberTypeId}`);
+      editBtn.style.display = 'inline-block';
+      
+      // Reset input value to the original rate from data attribute
+      const rateInput = document.getElementById(`rate-input-${memberTypeId}`);
+      const rateDisplay = document.getElementById(`rate-display-${memberTypeId}`);
+      const currentRate = rateDisplay.getAttribute('data-rate');
+      rateInput.value = parseFloat(currentRate).toFixed(4);
+    }
+
+    function saveRate(memberTypeId) {
+      const rateInput = document.getElementById(`rate-input-${memberTypeId}`);
+      const newRate = parseFloat(rateInput.value);
+      
+      if (isNaN(newRate) || newRate < 0 || newRate > 1) {
+        alert('Please enter a valid rate between 0 and 1 (e.g., 0.05 for 5%)');
+        return;
+      }
+
+      const saveBtn = document.getElementById(`save-btn-${memberTypeId}`);
+      const originalHtml = saveBtn.innerHTML;
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+      fetch('/api/update-patronage-rate/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({
+          member_type_id: memberTypeId,
+          patronage_rate: newRate
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          // Update display
+          const rateDisplay = document.getElementById(`rate-display-${memberTypeId}`);
+          const ratePercent = document.getElementById(`rate-percent-${memberTypeId}`);
+          const percentage = (newRate * 100).toFixed(2);
+          rateDisplay.setAttribute('data-rate', newRate);
+          ratePercent.textContent = percentage;
+          
+          // Exit edit mode
+          cancelEdit(memberTypeId);
+          
+          // Show success message
+          showAlert('Patronage rate updated successfully!', 'success');
+        } else {
+          alert(data.error || 'Failed to update patronage rate');
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = originalHtml;
+        }
+      })
+      .catch(err => {
+        console.error('Error:', err);
+        alert('Error updating patronage rate. Please try again.');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalHtml;
+      });
+    }
+
+    function showAlert(message, type = 'success') {
+      // Create alert element
+      const alertDiv = document.createElement('div');
+      alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+      alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+      alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      `;
+      document.body.appendChild(alertDiv);
+      
+      // Auto remove after 3 seconds
+      setTimeout(() => {
+        if (alertDiv.parentNode) {
+          alertDiv.remove();
+        }
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
+

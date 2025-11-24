@@ -1,0 +1,58 @@
+"""
+URL configuration for coop_kiosk project.
+
+The `urlpatterns` list routes URLs to views. For more information please see:
+    https://docs.djangoproject.com/en/5.2/topics/http/urls/
+Examples:
+Function views
+    1. Add an import:  from my_app import views
+    2. Add a URL to urlpatterns:  path('', views.home, name='home')
+Class-based views
+    1. Add an import:  from other_app.views import Home
+    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
+Including another URLconf
+    1. Import the include() function: from django.urls import include, path
+    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+"""
+from django.contrib import admin
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
+from kiosk import views as kiosk_views
+from admin_panel import views as admin_panel_views
+from members import views as members_views
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('', admin_panel_views.root_login, name='root_login'),
+    path('kiosk/', kiosk_views.kiosk_home, name='kiosk_home'),
+    path('api/scan-product/', kiosk_views.scan_product, name='scan_product'),
+    path('api/search-products/', kiosk_views.search_products, name='search_products'),
+    path('api/scan-rfid/', kiosk_views.scan_rfid, name='scan_rfid'),
+    path('api/process-payment/', kiosk_views.process_payment, name='process_payment'),
+    path('api/print-receipt-local/', kiosk_views.print_receipt_local, name='print_receipt_local'),
+    # RFID pre-login gate
+    path('rfid-gate/', members_views.rfid_gate, name='rfid_gate'),
+    path('api/rfid-validate-login/', members_views.api_validate_rfid_login, name='api_rfid_validate_login'),
+    path('admin/login/', admin_panel_views.redirect_to_root_login, name='admin_login'),
+    path('admin/logout/', admin_panel_views.admin_logout, name='admin_logout'),
+    path('kiosk/logout/', admin_panel_views.kiosk_logout, name='kiosk_logout'),
+    path('dashboard/', admin_panel_views.dashboard, name='dashboard'),
+    path('dashboard/inventory/', admin_panel_views.inventory_management, name='inventory_management'),
+    path('dashboard/members/', admin_panel_views.member_management, name='member_management'),
+    path('dashboard/patronage/', admin_panel_views.patronage_settings, name='patronage_settings'),
+    path('dashboard/transactions/', admin_panel_views.transaction_history, name='transaction_history'),
+    path('api/search-members/', admin_panel_views.api_search_members, name='api_search_members'),
+    path('api/refill-balance/', admin_panel_views.api_refill_balance, name='api_refill_balance'),
+    path('api/rfid-login/', admin_panel_views.api_rfid_login, name='api_rfid_login'),
+    path('api/update-patronage-rate/', admin_panel_views.api_update_patronage_rate, name='api_update_patronage_rate'),
+    path('user-choice/', admin_panel_views.user_choice, name='user_choice'),
+    path('user-transactions/', admin_panel_views.user_transactions, name='user_transactions'),
+    path('process-refund/', admin_panel_views.process_refund, name='process_refund'),
+    path('api/search-transactions-for-refund/', admin_panel_views.api_search_transactions_for_refund, name='api_search_transactions_for_refund'),
+    path('api/process-refund/', admin_panel_views.api_process_refund, name='api_process_refund'),
+]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

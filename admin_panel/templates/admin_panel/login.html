@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login | Cooperative Store</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --dark:#0f172a;
+            --brand:#1f7a3a;
+            --accent:#0b5f3a;
+            --muted:#94a3b8;
+            --panel:#ffffff;
+            --gradient:linear-gradient(135deg, #1f7a3a 0%, #0b5f3a 40%, #0d9488 100%);
+        }
+        body {
+            background: #f1f5f9;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+        .login-card {
+            background: var(--panel);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 25px 55px rgba(15,23,42,0.35);
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .login-header .icon-wrapper {
+            width: 80px;
+            height: 80px;
+            background: var(--gradient);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 2.5rem;
+            color: white;
+        }
+        .login-header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 8px;
+        }
+        .login-header p {
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+        .form-control {
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+        .form-control:focus {
+            border-color: var(--brand);
+            box-shadow: 0 0 0 3px rgba(31,122,58,0.1);
+        }
+        .input-group-icon {
+            position: relative;
+        }
+        .input-group-icon i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            z-index: 10;
+        }
+        .input-group-icon .form-control {
+            padding-left: 45px;
+        }
+        .btn-login {
+            background: var(--gradient);
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            font-weight: 600;
+            font-size: 1rem;
+            color: white;
+            width: 100%;
+            transition: all 0.2s ease;
+            margin-top: 8px;
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(31,122,58,0.3);
+            color: white;
+        }
+        .alert {
+            border-radius: 12px;
+            border: none;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+        }
+        .back-link {
+            text-align: center;
+            margin-top: 24px;
+        }
+        .back-link a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s ease;
+        }
+        .back-link a:hover {
+            color: var(--brand);
+        }
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 24px 0;
+        }
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .divider span {
+            padding: 0 16px;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+        .rfid-section {
+            margin-bottom: 24px;
+        }
+        .rfid-status {
+            margin-top: 8px;
+            font-size: 0.85rem;
+            min-height: 20px;
+        }
+        .rfid-status.scanning {
+            color: var(--brand);
+        }
+        .rfid-status.error {
+            color: #dc3545;
+        }
+        .rfid-status.success {
+            color: var(--brand);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="icon-wrapper">
+                    <i class="bi bi-shield-lock-fill"></i>
+                </div>
+                <h1>Login</h1>
+                <p>Sign in to access your account</p>
+            </div>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- RFID Login Section -->
+            <div class="rfid-section">
+                <div class="form-group">
+                    <label for="rfidInput" class="form-label">
+                        <i class="bi bi-credit-card-2-front me-2"></i>RFID Card Login
+                    </label>
+                    <div class="input-group-icon">
+                        <i class="bi bi-credit-card-2-front"></i>
+                        <input type="text" 
+                               class="form-control" 
+                               id="rfidInput" 
+                               name="rfid" 
+                               placeholder="Scan or enter RFID card number" 
+                               autocomplete="off">
+                    </div>
+                    <div id="rfidStatus" class="rfid-status"></div>
+                </div>
+            </div>
+
+            <div class="divider">
+                <span>OR</span>
+            </div>
+
+            <form method="POST" action="{% url 'root_login' %}" id="loginForm">
+                {% csrf_token %}
+                {% if request.GET.next %}
+                    <input type="hidden" name="next" value="{{ request.GET.next }}">
+                {% else %}
+                    <input type="hidden" name="next" value="dashboard">
+                {% endif %}
+                
+                <div class="form-group">
+                    <label for="username" class="form-label">Username</label>
+                    <div class="input-group-icon">
+                        <i class="bi bi-person-fill"></i>
+                        <input type="text" 
+                               class="form-control" 
+                               id="username" 
+                               name="username" 
+                               placeholder="Enter your username" 
+                               required 
+                               autofocus>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password" class="form-label">Password</label>
+                    <div class="input-group-icon">
+                        <i class="bi bi-lock-fill"></i>
+                        <input type="password" 
+                               class="form-control" 
+                               id="password" 
+                               name="password" 
+                               placeholder="Enter your password" 
+                               required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-login">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                </button>
+            </form>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        // RFID Login functionality
+        const rfidInput = document.getElementById('rfidInput');
+        const rfidStatus = document.getElementById('rfidStatus');
+        let rfidLoginTimeout = null;
+        let isProcessing = false;
+
+        async function handleRfidLogin(rfid) {
+            if (isProcessing) return;
+            
+            if (!rfid || rfid.trim() === '') {
+                return;
+            }
+
+            isProcessing = true;
+            rfidStatus.textContent = 'Scanning card...';
+            rfidStatus.className = 'rfid-status scanning';
+            rfidInput.disabled = true;
+
+            try {
+                const nextUrl = document.querySelector('input[name="next"]')?.value || 'dashboard';
+                const response = await fetch('/api/rfid-login/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({
+                        rfid: rfid.trim(),
+                        next: nextUrl
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    rfidStatus.textContent = 'Login successful! Redirecting...';
+                    rfidStatus.className = 'rfid-status success';
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 500);
+                } else {
+                    rfidStatus.textContent = data.error || 'Login failed. Please try again.';
+                    rfidStatus.className = 'rfid-status error';
+                    rfidInput.disabled = false;
+                    rfidInput.focus();
+                    rfidInput.select();
+                    isProcessing = false;
+                }
+            } catch (error) {
+                rfidStatus.textContent = 'Connection error. Please try again.';
+                rfidStatus.className = 'rfid-status error';
+                rfidInput.disabled = false;
+                rfidInput.focus();
+                isProcessing = false;
+            }
+        }
+
+        // Handle RFID input - auto-submit after a short delay (for card readers)
+        rfidInput.addEventListener('input', function(e) {
+            const rfid = e.target.value;
+            
+            // Clear previous timeout
+            if (rfidLoginTimeout) {
+                clearTimeout(rfidLoginTimeout);
+            }
+
+            // If input is empty, clear status
+            if (!rfid || rfid.trim() === '') {
+                rfidStatus.textContent = '';
+                rfidStatus.className = 'rfid-status';
+                return;
+            }
+
+            // Auto-submit after 500ms of no input (typical for RFID readers)
+            rfidLoginTimeout = setTimeout(() => {
+                handleRfidLogin(rfid);
+            }, 500);
+        });
+
+        // Handle Enter key
+        rfidInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (rfidLoginTimeout) {
+                    clearTimeout(rfidLoginTimeout);
+                }
+                handleRfidLogin(e.target.value);
+            }
+        });
+
+        // Focus on RFID input on page load
+        rfidInput.focus();
+    </script>
+</body>
+</html>
+

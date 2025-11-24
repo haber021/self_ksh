@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cooperative Store - Self Checkout Kiosk</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root{
+            --brand:#1f7a3a; /* primary green */
+            --accent:#0b5f3a;
+            --muted:#6c757d;
+            --bg:#f4f7f6;
+            --panel:#ffffff;
+            --radius:12px;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        html,body{height:100%;}
+        body { background: var(--bg); font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; color:#222; }
+        .kiosk-header { background: linear-gradient(90deg,var(--brand), var(--accent)); color: white; padding: 18px 20px; box-shadow: 0 3px 10px rgba(31,122,58,0.12); }
+        .kiosk-header h1{font-weight:700;letter-spacing:0.2px;font-size:1.25rem;margin:0}
+        .kiosk-header p{opacity:0.95;margin:0;font-size:0.9rem}
+        .kiosk-header .admin-menu { position: absolute; top: 18px; right: 20px; }
+        .kiosk-header .admin-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; }
+        .kiosk-header .admin-btn:hover { background: rgba(255,255,255,0.3); border-color: rgba(255,255,255,0.5); color: white; transform: translateY(-1px); }
+        @media (max-width: 768px) {
+            .kiosk-header .admin-menu { position: static; margin-top: 12px; }
+            .kiosk-header .admin-btn { font-size: 0.85rem; padding: 6px 12px; }
+        }
+        .scan-area { background: var(--panel); padding: 28px; border-radius: var(--radius); margin: 20px 0; text-align: left; min-height: 300px; box-shadow: 0 12px 30px rgba(16,24,40,0.08); border: 1px solid rgba(15,63,38,0.04); }
+        .cart-item { background: var(--panel); padding: 18px; margin: 16px 0; border-radius: 14px; border: 1px solid #e3e7ea; box-shadow: 0 12px 24px rgba(16,24,40,0.04); transition: box-shadow 0.2s ease, transform 0.2s ease; }
+        .cart-item:hover { box-shadow: 0 18px 32px rgba(16,24,40,0.08); transform: translateY(-2px); }
+        .cart-item-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+        .cart-item-title { font-weight: 600; font-size: 1rem; margin-bottom: 0.1rem; }
+        .cart-item-meta { font-size: 0.85rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+        .qty-chip { background: rgba(31,122,58,0.1); color: var(--accent); padding: 2px 10px; border-radius: 999px; font-weight: 600; font-size: 0.82rem; }
+        .price-tag { font-size: 1.15rem; font-weight: 700; color: var(--accent); }
+        .cart-item-controls { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; margin-top: 14px; }
+        .cart-quantity-group { display: flex; align-items: center; border: 1px solid #d9dee2; border-radius: 999px; overflow: hidden; }
+        .cart-quantity-group .btn { border: none; background: transparent; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; color: var(--accent); }
+        .cart-quantity-group input { width: 70px; border: 0; text-align: center; font-weight: 600; font-size: 1rem; }
+        .cart-quantity-group input:focus { box-shadow: none; outline: none; }
+        .cart-item .btn-danger { border-radius: 10px; padding: 10px 14px; }
+        .summary-box { background: var(--panel); padding: 24px; border-radius: 18px; position: sticky; top: 20px; box-shadow: 0 18px 36px rgba(16,24,40,0.08); border: 1px solid rgba(15,63,38,0.05); }
+        .btn-scan { font-size: 1rem; padding: 12px 18px; border-radius: 10px; }
+        .scan-icon { font-size: 3.4rem; color: var(--brand); }
+        .lead-muted{color:var(--muted);}
+        .small-muted{color:var(--muted);font-size:0.85rem}
+        .cart-empty { text-align: center; padding: 60px 30px; border: 2px dashed #d7dee3; border-radius: 16px; color: var(--muted); background: rgba(255,255,255,0.8); margin-top: 24px; }
+
+        /* Suggestions */
+        #productSuggestions{background:var(--panel); border:1px solid #e6edf0; border-radius:8px; box-shadow:0 6px 18px rgba(16,24,40,0.06);}
+        #productSuggestions .list-group-item{padding:12px 14px;border-radius:6px;margin:6px;}
+        #productSuggestions .list-group-item:hover{background:#f1f8f4;cursor:pointer}
+
+        /* Member info card */
+        #memberInfo{display:none;border-radius:10px;padding:14px;background:linear-gradient(180deg,#eaf8f0, #e6fbf2);border:1px solid rgba(31,122,58,0.08);box-shadow:0 4px 12px rgba(31,122,58,0.04)}
+        #memberInfo strong{color:var(--accent)}
+
+        /* Receipt tweaks (keep previous print rules) */
+        /* Print: show only receipt when printing */
+        @media print {
+            body.print-receipt-only * {
+                visibility: hidden !important;
+            }
+            body.print-receipt-only #receiptModal,
+            body.print-receipt-only #receiptModal * {
+                visibility: visible !important;
+            }
+            body.print-receipt-only #receiptModal {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+            }
+            body.print-receipt-only #receiptModal .modal-dialog {
+                max-width: 100% !important;
+                width: 100% !important;
+                margin: 0 !important;
+            }
+            body.print-receipt-only .modal-backdrop,
+            body.print-receipt-only .position-fixed,
+            body.print-receipt-only #receiptModal .modal-footer,
+            body.print-receipt-only #receiptModal .btn-close {
+                display: none !important;
+            }
+            body.print-receipt-only #receiptContent {
+                padding: 0 !important;
+            }
+            body.print-receipt-only #receiptModal .modal-content {
+                box-shadow: none !important;
+                border: 0 !important;
+                page-break-inside: avoid;
+            }
+            /* Hide display version, show print version when printing */
+            body.print-receipt-only .receipt-display {
+                display: none !important;
+            }
+            body.print-receipt-only .receipt-paper {
+                display: block !important;
+                visibility: visible !important;
+            }
+        }
+
+        /* Receipt display (on-screen) - presentable version */
+        .receipt-display { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: #ffffff; 
+            border-radius: 16px; 
+            padding: 32px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .receipt-display .rd-header { 
+            text-align: center; 
+            padding-bottom: 24px; 
+            border-bottom: 2px solid #e9ecef; 
+            margin-bottom: 24px; 
+        }
+        .receipt-display .rd-title { 
+            font-weight: 700; 
+            font-size: 1.5rem; 
+            color: var(--brand); 
+            margin-bottom: 4px; 
+            letter-spacing: 0.5px;
+        }
+        .receipt-display .rd-subtitle { 
+            font-size: 0.9rem; 
+            color: var(--muted); 
+            text-transform: uppercase; 
+            letter-spacing: 1px;
+        }
+        .receipt-display .rd-info { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 8px; 
+            margin-bottom: 24px; 
+            padding: 16px; 
+            background: #f8f9fa; 
+            border-radius: 10px; 
+        }
+        .receipt-display .rd-info-row { 
+            display: flex; 
+            justify-content: space-between; 
+            font-size: 0.9rem; 
+        }
+        .receipt-display .rd-info-label { 
+            color: var(--muted); 
+            font-weight: 500; 
+        }
+        .receipt-display .rd-info-value { 
+            color: #222; 
+            font-weight: 600; 
+        }
+        .receipt-display .rd-section { 
+            margin: 24px 0; 
+        }
+        .receipt-display .rd-section-title { 
+            font-weight: 700; 
+            font-size: 1.1rem; 
+            color: var(--accent); 
+            margin-bottom: 16px; 
+            padding-bottom: 8px; 
+            border-bottom: 2px solid #e9ecef; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px;
+        }
+        .receipt-display .rd-items { 
+            list-style: none; 
+            padding: 0; 
+            margin: 0; 
+        }
+        .receipt-display .rd-item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-start; 
+            padding: 12px 0; 
+            border-bottom: 1px solid #f0f0f0; 
+        }
+        .receipt-display .rd-item:last-child { 
+            border-bottom: none; 
+        }
+        .receipt-display .rd-item-name { 
+            flex: 1; 
+            font-weight: 500; 
+            color: #222; 
+        }
+        .receipt-display .rd-item-qty { 
+            color: var(--muted); 
+            font-size: 0.85rem; 
+            margin-left: 8px; 
+        }
+        .receipt-display .rd-item-price { 
+            font-weight: 600; 
+            color: var(--accent); 
+            font-size: 1rem; 
+        }
+        .receipt-display .rd-line { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 8px 0; 
+            font-size: 0.95rem; 
+        }
+        .receipt-display .rd-line-label { 
+            color: var(--muted); 
+        }
+        .receipt-display .rd-line-value { 
+            font-weight: 600; 
+            color: #222; 
+        }
+        .receipt-display .rd-separator { 
+            border-top: 2px dashed #dee2e6; 
+            margin: 16px 0; 
+        }
+        .receipt-display .rd-total { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 16px; 
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
+            border-radius: 10px; 
+            margin-top: 16px; 
+            font-size: 1.2rem; 
+            font-weight: 700; 
+            color: var(--accent); 
+        }
+        .receipt-display .rd-payment-section { 
+            background: #f8f9fa; 
+            padding: 16px; 
+            border-radius: 10px; 
+            margin-top: 16px; 
+        }
+        .receipt-display .rd-payment-row { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 6px 0; 
+            font-size: 0.95rem; 
+        }
+        .receipt-display .rd-member-summary { 
+            background: #eaf8f0; 
+            padding: 16px; 
+            border-radius: 10px; 
+            margin-top: 16px; 
+            border: 1px solid rgba(31,122,58,0.1); 
+        }
+        .receipt-display .rd-member-row { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 6px 0; 
+            font-size: 0.9rem; 
+        }
+        .receipt-display .rd-thanks { 
+            text-align: center; 
+            margin-top: 24px; 
+            padding-top: 24px; 
+            border-top: 2px solid #e9ecef; 
+            font-weight: 600; 
+            color: var(--brand); 
+            font-size: 1.1rem; 
+        }
+
+        /* Responsive adjustments for receipt display */
+        @media (max-width: 768px) {
+            .receipt-display {
+                padding: 20px;
+                border-radius: 12px;
+            }
+            .receipt-display .rd-title {
+                font-size: 1.3rem;
+            }
+            .receipt-display .rd-info-row {
+                flex-direction: column;
+                gap: 4px;
+            }
+            .receipt-display .rd-item {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .receipt-display .rd-item-price {
+                text-align: right;
+            }
+        }
+
+        /* Modal body styling for receipt */
+        #receiptModal .modal-body {
+            padding: 24px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        /* Receipt layout (print version) - thermal printer optimized */
+        .receipt-paper { font-family: "Courier New", monospace; font-size: 12pt; line-height: 1.45; width: 56mm; max-width: 56mm; margin: 0 auto; color: #000 !important; }
+        .receipt-paper * { color: #000 !important; }
+        .receipt-paper .rp-center { text-align: center; }
+        .receipt-paper .rp-title { font-weight: 700; font-size: 13pt; margin: 2mm 0 1mm; color: #000 !important; }
+        .receipt-paper .rp-sub { font-size: 11pt; margin-bottom: 2mm; color: #000 !important; }
+        .receipt-paper .rp-line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; color: #000 !important; }
+        .receipt-paper .rp-line span { color: #000 !important; }
+        .receipt-paper .rp-sep { border-top: 1px dashed #000; margin: 2mm 0; }
+        .receipt-paper .rp-section-title { margin: 1mm 0; font-weight: 700; color: #000 !important; }
+        .receipt-paper .rp-items { list-style: none; padding: 0; margin: 0 0 2mm 0; }
+        .receipt-paper .rp-items li { margin: 1mm 0; font-size: 11pt; color: #000 !important; }
+        .receipt-paper .rp-subline { font-size: 10pt; color: #000 !important; }
+        .receipt-paper .rp-total { font-weight: 700; font-size: 12pt; color: #c00 !important; }
+        .receipt-paper .rp-box { border: 1px dashed #000; padding: 2mm; margin: 2mm 0; color: #000 !important; }
+        .receipt-paper .rp-thanks { margin-top: 2mm; font-weight: 700; color: #000 !important; }
+
+        /* Print tuning for thermal paper */
+        @page { size: 58mm auto; margin: 2mm; }
+        @media print {
+            body.print-receipt-only #receiptModal .modal-header { display: none !important; }
+            body.print-receipt-only #receiptModal .modal-body { padding: 0 !important; }
+            body.print-receipt-only #receiptModal .modal-body > .text-center { display: none !important; }
+            body.print-receipt-only #receiptPaper { width: 56mm !important; max-width: 56mm !important; margin: 0 auto !important; }
+            body.print-receipt-only #receiptPaper .rp-subline { color: #000 !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="kiosk-header" style="position: relative;">
+        <div class="container">
+            <h1><i class="bi bi-shop"></i> Cooperative Store - Self Checkout</h1>
+            <p class="mb-0">Quick, Easy, and Convenient Shopping</p>
+        </div>
+        <div class="admin-menu">
+            <a href="{% url 'kiosk_logout' %}" class="admin-btn">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </a>
+        </div>
+    </div>
+
+    <!-- Toast container for inline messages -->
+    <div aria-live="polite" aria-atomic="true" class="position-fixed top-0 end-0 p-3" style="z-index: 1080;">
+        <div id="kioskToast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="5000" style="display:none;">
+            <div class="d-flex">
+                <div id="kioskToastBody" class="toast-body"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="scan-area">
+                    <i class="bi bi-upc-scan scan-icon"></i>
+                    <h3 class="mt-3">Scan Your Item</h3>
+                    <p class="text-muted">Enter barcode or scan with scanner</p>
+                    
+                    <div class="mt-4" style="position:relative;">
+                        <input type="text" id="barcodeInput" class="form-control form-control-lg" 
+                               placeholder="Enter barcode or product name (type to search)..." autofocus autocomplete="off">
+                        <div id="productSuggestions" class="list-group" style="position:absolute;z-index:1050;left:0;right:0;display:none;max-height:260px;overflow:auto;margin-top:6px;"></div>
+                        <div class="d-flex gap-2 mt-3">
+                            <button class="btn btn-success btn-scan" onclick="onScanButtonClick()">
+                                <i class="bi bi-upc-scan"></i> Scan / Add
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="clearSuggestions()">Clear</button>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4" id="rfidWrapper" style="display:none;">
+                        <label for="rfidInput" class="form-label visually-hidden">Scan RFID card</label>
+                        <input type="text" id="rfidInput" class="form-control" placeholder="Scan RFID card..." autocomplete="off" aria-label="Scan RFID card">
+                        <!-- Scan button removed: RFID readers (keyboard-wedge) will input the tag and this field will auto-submit via JS -->
+                    </div>
+                    
+                    <div id="memberInfo" class="mt-3" style="display:none;"></div>
+                </div>
+
+                <div id="cartItems"></div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="summary-box">
+                    <h4>Order Summary</h4>
+                    <hr>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>VATable Sale:</span>
+                        <strong id="subtotal">₱0.00</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>VAT (12%):</span>
+                        <strong id="vat">₱0.00</strong>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between mb-3">
+                        <h5>Total:</h5>
+                        <h5 id="total">₱0.00</h5>
+                    </div>
+                    
+                    <div id="paymentOptions" style="display:none;">
+                        <h6>Payment Method:</h6>
+                        <div class="btn-group-vertical w-100 mb-3">
+                            <button class="btn btn-outline-success" onclick="preparePayment('debit')">
+                                <i class="bi bi-wallet2"></i> Debit (Member Account)
+                            </button>
+                            <button class="btn btn-outline-warning" onclick="preparePayment('credit')">
+                                <i class="bi bi-credit-card"></i> Credit (Utang)
+                            </button>
+                            <button class="btn btn-outline-primary" onclick="processPayment('cash')">
+                                <i class="bi bi-cash"></i> Cash
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check form-switch mt-3 mb-2">
+                        <input class="form-check-input" type="checkbox" id="autoPrintToggle">
+                        <label class="form-check-label" for="autoPrintToggle">Auto-print receipt</label>
+                    </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="directPrintToggle">
+                        <label class="form-check-label" for="directPrintToggle">Direct print (no dialog)</label>
+                    </div>
+
+                    <button class="btn btn-danger w-100" onclick="clearCart()">
+                        <i class="bi bi-x-circle"></i> Cancel / Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="receiptModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Transaction Complete!</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+                        <h3>Thank You for Your Purchase!</h3>
+                    </div>
+                    <div id="receiptContent"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="printReceipt()">
+                        <i class="bi bi-printer"></i> Print Receipt
+                    </button>
+                    <button class="btn btn-success" data-bs-dismiss="modal" onclick="newTransaction()">
+                        New Transaction
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PIN modal -->
+    <div class="modal fade" id="pinModal" tabindex="-1">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Enter 4-digit PIN</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input id="pinInput" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" class="form-control form-control-lg text-center" maxlength="4" placeholder="••••" autofocus>
+                    <div id="pinError" class="text-danger mt-2" style="display:none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" id="pinSubmitBtn">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    let cart = [];
+    let currentMember = null;
+    // Values injected from Django settings.
+    const VAT_RATE = parseFloat('{{ VAT_RATE|default:0.12|floatformat:4 }}');
+    const VAT_INCLUSIVE = {{ VAT_INCLUSIVE|yesno:"true,false"|default:"false" }};
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        const csrftoken = getCookie('csrftoken');
+        // Auto-print toggle storage key and helpers
+        const AUTO_PRINT_KEY = 'kiosk_auto_print_receipt';
+        const DIRECT_PRINT_KEY = 'kiosk_direct_print_no_dialog';
+
+        function isAutoPrintEnabled() {
+            try {
+                const v = localStorage.getItem(AUTO_PRINT_KEY);
+                // default to enabled if not set
+                if (v === null) return true;
+                return v === '1' || v === 'true';
+            } catch (e) { return true; }
+        }
+
+        function setAutoPrintEnabled(on) {
+            try { localStorage.setItem(AUTO_PRINT_KEY, on ? '1' : '0'); } catch (e) {}
+            const el = document.getElementById('autoPrintToggle');
+            if (el) el.checked = !!on;
+        }
+
+        function isDirectPrintEnabled() {
+            try {
+                const v = localStorage.getItem(DIRECT_PRINT_KEY);
+                if (v === null) return false; // default off
+                return v === '1' || v === 'true';
+            } catch (e) { return false; }
+        }
+
+        function setDirectPrintEnabled(on) {
+            try { localStorage.setItem(DIRECT_PRINT_KEY, on ? '1' : '0'); } catch (e) {}
+            const el = document.getElementById('directPrintToggle');
+            if (el) el.checked = !!on;
+        }
+
+        // Attempt direct/silent print by POSTing to the local print endpoint.
+        // Returns a Promise<boolean> that resolves true on success, false on failure.
+        async function attemptDirectPrint(payload) {
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 8000);
+                const res = await fetch('/api/print-receipt-local/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
+                });
+                clearTimeout(timeout);
+
+                // Accept any 2xx as success. Try parsing JSON safely but tolerate non-JSON responses.
+                if (!res.ok) return false;
+                let body = null;
+                try { body = await res.json(); } catch (e) { /* non-json response, but treat 200 as success */ }
+                if (body && typeof body === 'object') {
+                    return !!body.success; // only success:true considered success
+                }
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function scanProduct() {
+            const barcode = document.getElementById('barcodeInput').value;
+            if (!barcode) return;
+
+            fetch('/api/scan-product/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({barcode: barcode})
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // include server-reported stock on the product object
+                    addToCart(data.product);
+                    document.getElementById('barcodeInput').value = '';
+                } else {
+                    // Show the actual error message from server (e.g., expired product, out of stock, etc.)
+                    showMessage(data.error || 'Product not found!', 'danger');
+                }
+            });
+        }
+
+        function scanRFID() {
+            const rfid = document.getElementById('rfidInput').value;
+            if (!rfid) return;
+
+            fetch('/api/scan-rfid/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({rfid: rfid})
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    currentMember = data.member;
+                    document.getElementById('memberInfo').innerHTML = `
+                        <strong>Member:</strong> ${data.member.name}<br>
+                        <strong>Balance:</strong> ₱${parseFloat(data.member.balance).toFixed(2)}<br>
+                        <strong>Utang:</strong> ₱${parseFloat(data.member.utang_balance).toFixed(2)}
+                    `;
+                    document.getElementById('memberInfo').style.display = 'block';
+                    document.getElementById('rfidInput').value = '';
+                    // Notify any waiting code that a member was scanned
+                    try {
+                        document.dispatchEvent(new CustomEvent('memberScanned', { detail: data.member }));
+                    } catch (e) { /* ignore in older browsers */ }
+                } else {
+                    showMessage('Member not found!', 'danger');
+                }
+            });
+        }
+
+        // --- Product name search / suggestions ---
+        let _searchTimer = null;
+        const SEARCH_DEBOUNCE_MS = 300;
+
+        // Perform product name search (GET). Expects JSON { results: [ {id,name,price,barcode,stock,...}, ... ] }
+        async function searchProducts(query) {
+            if (!query || query.trim().length < 2) return [];
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 6000);
+                const res = await fetch('/api/search-products/?q=' + encodeURIComponent(query), { signal: controller.signal });
+                clearTimeout(timeout);
+                if (!res.ok) return [];
+                const data = await res.json();
+                return data.results || data || [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function renderSuggestions(items) {
+            const el = document.getElementById('productSuggestions');
+            if (!el) return;
+            if (!items || items.length === 0) {
+                el.style.display = 'none';
+                el.innerHTML = '';
+                return;
+            }
+            el.innerHTML = items.slice(0, 10).map(p => `
+                <button type="button" class="list-group-item list-group-item-action" data-product-id="${p.id}" data-product='${escapeHtml(JSON.stringify(p))}'>
+                    <div class="d-flex justify-content-between">
+                        <div><strong>${escapeHtml(p.name)}</strong><br><small class="text-muted">${escapeHtml(p.barcode || '')}</small></div>
+                        <div class="text-end">₱${parseFloat(p.price||0).toFixed(2)}<br><small class="text-muted">Stock: ${p.stock||p.stock_quantity||0}</small></div>
+                    </div>
+                </button>
+            `).join('');
+            el.style.display = 'block';
+
+            // bind clicks
+            el.querySelectorAll('button.list-group-item').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const raw = this.getAttribute('data-product');
+                    try {
+                        const p = JSON.parse(unescapeHtml(raw));
+                        addToCart(p);
+                        clearSuggestions();
+                        const input = document.getElementById('barcodeInput'); if (input) input.value = '';
+                    } catch (e) { /* ignore */ }
+                });
+            });
+        }
+
+        function clearSuggestions() {
+            const el = document.getElementById('productSuggestions');
+            if (!el) return;
+            el.style.display = 'none';
+            el.innerHTML = '';
+        }
+
+        function escapeHtml(s) { return (s+'').replace(/&/g,'\\u0026').replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/'/g,'\\u0027').replace(/"/g,'\\u0022'); }
+        function unescapeHtml(s) { return (s+'').replace(/\\u0026/g,'&').replace(/\\u003c/g,'<').replace(/\\u003e/g,'>').replace(/\\u0027/g,"'").replace(/\\u0022/g,'"'); }
+
+        const barcodeInputEl = document.getElementById('barcodeInput');
+        if (barcodeInputEl) {
+            barcodeInputEl.addEventListener('input', function(e) {
+                const v = this.value;
+                // debounce
+                if (_searchTimer) clearTimeout(_searchTimer);
+                _searchTimer = setTimeout(async () => {
+                    // If input looks numeric and <=13 chars, prefer barcode path (do nothing)
+                    const onlyDigits = /^\d+$/.test(v.trim());
+                    if (onlyDigits && v.trim().length <= 13) {
+                        // hide suggestions for barcode-like input
+                        clearSuggestions();
+                        return;
+                    }
+                    const results = await searchProducts(v.trim());
+                    renderSuggestions(results);
+                }, SEARCH_DEBOUNCE_MS);
+            });
+
+            barcodeInputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // Prevent default form submission behavior
+                    const sugEl = document.getElementById('productSuggestions');
+                    if (sugEl && sugEl.children.length > 0) {
+                        // simulate click on first suggestion
+                        const first = sugEl.children[0];
+                        if (first) { first.click(); return; }
+                    }
+                    // fallback to barcode scan behavior
+                    onScanButtonClick();
+                }
+                if (e.key === 'Escape') { clearSuggestions(); }
+            });
+        }
+
+        function onScanButtonClick() {
+            const v = (document.getElementById('barcodeInput') || {}).value;
+            if (!v) return;
+            const trimmed = v.trim();
+            // If input looks like a barcode (all digits, reasonable length), call scanProduct
+            if (/^\d+$/.test(trimmed)) {
+                document.getElementById('barcodeInput').value = trimmed;
+                scanProduct();
+                return;
+            }
+            // Otherwise try to search and if there is at least one suggestion, add the first
+            (async function(){
+                const results = await searchProducts(trimmed);
+                if (results && results.length > 0) {
+                    addToCart(results[0]);
+                    document.getElementById('barcodeInput').value = '';
+                    clearSuggestions();
+                } else {
+                    showMessage('No matching products found', 'warning');
+                }
+            })();
+        }
+
+        function addToCart(product) {
+            const existing = cart.find(item => item.id === product.id);
+            const available = parseInt(product.stock || product.stock_quantity || 0, 10);
+            if (existing) {
+                // Prevent adding more than available stock
+                if (existing.quantity + 1 > available) {
+                    showMessage(`Cannot add more. Only ${available - existing.quantity} left in stock.`, 'warning');
+                    return;
+                }
+                existing.quantity++;
+            } else {
+                if (available <= 0) {
+                    showMessage('Product is out of stock', 'danger');
+                    return;
+                }
+                // include available stock on the cart item for UI
+                cart.push({...product, quantity: 1, available_stock: available});
+            }
+            updateCart();
+        }
+
+        function removeFromCart(productId) {
+            cart = cart.filter(item => item.id !== productId);
+            updateCart();
+        }
+
+        function updateCart() {
+            const container = document.getElementById('cartItems');
+            if (!container) return;
+
+            if (cart.length === 0) {
+                container.innerHTML = `
+                    <div class="cart-empty">
+                        <i class="bi bi-bag-check" style="font-size:3rem;"></i>
+                        <p class="mt-3 mb-0">Your cart is waiting. Scan a product to get started.</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = cart.map(item => {
+                    const available = typeof item.available_stock !== 'undefined' ? item.available_stock : (item.stock || item.stock_quantity || 0);
+                    const remaining = Math.max((available || 0) - item.quantity, 0);
+                    const lineTotal = (parseFloat(item.price) * item.quantity).toFixed(2);
+                    return `
+                        <div class="cart-item">
+                            <div class="cart-item-header">
+                                <div>
+                                    <div class="cart-item-title">${item.name}</div>
+                                    <div class="cart-item-meta">
+                                        <span>${item.barcode || 'No barcode'}</span>
+                                        <span class="qty-chip">Remaining: ${remaining}</span>
+                                    </div>
+                                </div>
+                                <div class="price-tag">₱${lineTotal}</div>
+                            </div>
+                            <div class="cart-item-controls">
+                                <div class="cart-quantity-group">
+                                    <button class="btn" type="button" onclick="changeQuantity(${item.id}, -1)">-</button>
+                                    <input type="number" min="1" class="form-control" value="${item.quantity}" oninput="onQuantityInput(${item.id}, this)" onblur="setQuantity(${item.id}, this.value)">
+                                    <button class="btn" type="button" onclick="changeQuantity(${item.id}, 1)">+</button>
+                                </div>
+                                <button class="btn btn-danger" onclick="removeFromCart(${item.id})">
+                                    <i class="bi bi-trash me-1"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0);
+            let vat = 0;
+            let total = 0;
+            let vatable = 0;
+
+            if (VAT_INCLUSIVE) {
+                // Extract VAT from subtotal: VAT = subtotal - (subtotal / (1 + rate))
+                vat = subtotal - (subtotal / (1 + VAT_RATE));
+                vatable = subtotal - vat; // when inclusive, vatable_sale = subtotal - vat
+                total = subtotal;
+            } else {
+                // Per your formula:
+                // vat_total = product * vat_rate
+                // vatable_sale = product - vat_total
+                // total = vat_total + vatable_sale
+                vat = subtotal * VAT_RATE;
+                vatable = subtotal - vat;
+                total = vat + vatable; // equals subtotal, but kept per formula
+            }
+
+            // Normalize available_stock for display: if not present, try to use server 'stock' value
+            cart = cart.map(item => {
+                const available = typeof item.available_stock !== 'undefined' ? item.available_stock : (item.stock || item.stock_quantity || 0);
+                return {...item, available_stock: available};
+            });
+
+            document.getElementById('subtotal').textContent = `₱${vatable.toFixed(2)}`;
+            document.getElementById('vat').textContent = `₱${vat.toFixed(2)}`;
+            document.getElementById('total').textContent = `₱${total.toFixed(2)}`;
+
+            document.getElementById('paymentOptions').style.display = cart.length > 0 ? 'block' : 'none';
+        }
+
+        function processPayment(method, pin) {
+            if (cart.length === 0) {
+                showMessage('Cart is empty!', 'warning');
+                return;
+            }
+
+            const items = cart.map(item => ({product_id: item.id, quantity: item.quantity}));
+
+            const payload = {
+                member_id: currentMember ? currentMember.id : null,
+                items: items,
+                payment_method: method
+            };
+
+            if (pin) payload.pin = pin;
+
+            fetch('/api/process-payment/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showReceipt(data.transaction);
+                } else {
+                    showMessage('Payment failed: ' + data.error, 'danger');
+                }
+            });
+        }
+
+        function sendPaymentRequest(payload) {
+            fetch('/api/process-payment/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showReceipt(data.transaction);
+                } else {
+                    showMessage('Payment failed: ' + data.error, 'danger');
+                }
+            });
+        }
+
+        function preparePayment(method) {
+            // If debit/credit require a member; if none attached, prompt to scan card first.
+            if ((method === 'debit' || method === 'credit')) {
+                if (!currentMember) {
+                    // Prompt user to scan a member card by revealing the RFID input
+                    showRFIDInput();
+                    // Provide a lightweight instruction
+                    showMessage('Please scan member card now. The RFID input is shown and will auto-detect the card.', 'info');
+
+                    // Wait for memberScanned event for up to 12 seconds, otherwise hide the input and abort
+                    const waitForMember = new Promise((resolve) => {
+                        const onScanned = (e) => { resolve(e.detail); };
+                        document.addEventListener('memberScanned', onScanned, { once: true });
+                        setTimeout(() => { document.removeEventListener('memberScanned', onScanned); resolve(null); }, 12000);
+                    });
+                    waitForMember.then(member => {
+                        hideRFIDInput();
+                        if (member) {
+                            // proceed to collect PIN
+                            showPinModal().then(pin => { if (pin) processPayment(method, pin); });
+                        } else {
+                            showMessage('Member not scanned. Payment cancelled.', 'warning');
+                        }
+                    });
+                    return;
+                }
+                // member exists, ask for PIN
+                showPinModal().then(pin => {
+                    if (!pin) return; // cancelled
+                    processPayment(method, pin);
+                });
+                return;
+            }
+            // cash or other methods
+            processPayment(method, null);
+        }
+
+        function showPinModal() {
+            return new Promise((resolve) => {
+                const pinInput = document.getElementById('pinInput');
+                const pinError = document.getElementById('pinError');
+                pinInput.value = '';
+                pinError.style.display = 'none';
+                const pinModalEl = document.getElementById('pinModal');
+                const pinModal = new bootstrap.Modal(pinModalEl);
+                pinModal.show();
+
+                const submitBtn = document.getElementById('pinSubmitBtn');
+
+                function cleanup() {
+                    submitBtn.removeEventListener('click', onSubmit);
+                    pinInput.removeEventListener('keypress', onKey);
+                    pinModalEl.removeEventListener('hidden.bs.modal', onCancel);
+                }
+
+                function onSubmit() {
+                    const pin = pinInput.value.trim();
+                    if (!pin || pin.length !== 4 || !/^[0-9]{4}$/.test(pin)) {
+                        pinError.innerText = 'Enter a valid 4-digit PIN';
+                        pinError.style.display = 'block';
+                        return;
+                    }
+                    cleanup();
+                    pinModal.hide();
+                    resolve(pin);
+                }
+
+                function onKey(e) { if (e.key === 'Enter') onSubmit(); }
+
+                function onCancel() {
+                    cleanup();
+                    resolve(null);
+                }
+
+                submitBtn.addEventListener('click', onSubmit);
+                pinInput.addEventListener('keypress', onKey);
+                pinModalEl.addEventListener('hidden.bs.modal', onCancel, { once: true });
+                pinInput.focus();
+            });
+        }
+
+        function showReceipt(transaction) {
+            // Shorten transaction number for receipt printing so it fits nicely
+            const txnRaw = (transaction.transaction_number || transaction.id || '').toString();
+            const txnShort = txnRaw.length > 20 ? (txnRaw.slice(0, 20) + '...') : txnRaw;
+
+            // Friendly data fallbacks
+            const txnDate = transaction.date || transaction.created_at || new Date().toISOString();
+            const memberId = transaction.member_id || (transaction.member && (transaction.member.member_id || transaction.member.id)) || '';
+            const items = transaction.items || [];
+            const subtotal = parseFloat(transaction.subtotal || transaction.vatable_sale || 0);
+            const patronagePercent = parseFloat(transaction.patronage_percent || 2);
+            const patronageAmt = parseFloat(transaction.patronage_amount || (subtotal * (patronagePercent/100)) || 0);
+            const total = parseFloat(transaction.total_amount || subtotal + patronageAmt || 0);
+            const rfidUsed = parseFloat(transaction.amount_paid_by_member || transaction.paid_by_member || transaction.rfid_used || transaction.amount_paid || 0);
+            const creditAmt = parseFloat(transaction.amount_to_utang || transaction.credit || 0);
+
+            // Compute VAT and vatable sale for transparency (use transaction values when provided)
+            let vatAmount = parseFloat(transaction.vat_amount || 0);
+            let vatableSale = parseFloat(transaction.vatable_sale || 0);
+            try {
+                if (!vatAmount) {
+                    if (typeof VAT_INCLUSIVE !== 'undefined' && VAT_INCLUSIVE) {
+                        // When prices are VAT inclusive: extract VAT from subtotal
+                        vatAmount = subtotal - (subtotal / (1 + VAT_RATE));
+                        vatableSale = subtotal - vatAmount;
+                    } else {
+                        // When prices are VAT exclusive: VAT is computed on top of subtotal
+                        vatAmount = subtotal * VAT_RATE;
+                        vatableSale = subtotal - vatAmount;
+                    }
+                } else if (!vatableSale) {
+                    vatableSale = parseFloat(transaction.vatable_sale || (subtotal - vatAmount) || 0);
+                }
+            } catch (e) {
+                // If VAT_RATE or VAT_INCLUSIVE aren't available, fall back to zeros
+                vatAmount = parseFloat(transaction.vat_amount || 0);
+                vatableSale = parseFloat(transaction.vatable_sale || subtotal || 0);
+            }
+
+            // Build receipt HTML with presentable on-screen display and hidden print version
+            const memberSummary = transaction.member || null;
+            const formattedDate = new Date(txnDate).toLocaleString([], { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+            
+            // On-screen display version (presentable)
+            const displayHtml = `
+                <div class="receipt-display">
+                    <div class="rd-header">
+                        <div class="rd-title">COOPERATIVE STORE</div>
+                        <div class="rd-subtitle">Self-Checkout Receipt</div>
+                    </div>
+                    
+                    <div class="rd-info">
+                        <div class="rd-info-row">
+                            <span class="rd-info-label">Transaction ID:</span>
+                            <span class="rd-info-value">${txnRaw}</span>
+                        </div>
+                        <div class="rd-info-row">
+                            <span class="rd-info-label">Date & Time:</span>
+                            <span class="rd-info-value">${formattedDate}</span>
+                        </div>
+                        ${ memberId ? `
+                        <div class="rd-info-row">
+                            <span class="rd-info-label">Member ID:</span>
+                            <span class="rd-info-value">${memberId}</span>
+                        </div>
+                        ` : '' }
+                    </div>
+
+                    <div class="rd-section">
+                        <div class="rd-section-title">Items Purchased</div>
+                        <ul class="rd-items">
+                            ${items.map(i => `
+                                <li class="rd-item">
+                                    <div>
+                                        <span class="rd-item-name">${i.product_name}</span>
+                                        ${i.quantity ? `<span class="rd-item-qty">× ${i.quantity}</span>` : ''}
+                                    </div>
+                                    <span class="rd-item-price">₱${parseFloat(i.total_price || (i.unit_price * i.quantity) || 0).toFixed(2)}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+
+                    <div class="rd-separator"></div>
+
+                    <div class="rd-section">
+                        <div class="rd-line">
+                            <span class="rd-line-label">Vatable Sale</span>
+                            <span class="rd-line-value">₱${vatableSale.toFixed(2)}</span>
+                        </div>
+                        <div class="rd-line">
+                            <span class="rd-line-label">VAT (${(VAT_RATE*100).toFixed(0)}%)</span>
+                            <span class="rd-line-value">₱${vatAmount.toFixed(2)}</span>
+                        </div>
+                        <div class="rd-line">
+                            <span class="rd-line-label">Subtotal</span>
+                            <span class="rd-line-value">₱${subtotal.toFixed(2)}</span>
+                        </div>
+                        <div class="rd-line">
+                            <span class="rd-line-label">Patronage Fee (${patronagePercent}%)</span>
+                            <span class="rd-line-value">₱${patronageAmt.toFixed(2)}</span>
+                        </div>
+                        <div class="rd-total">
+                            <span>Total Amount</span>
+                            <span>₱${total.toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    <div class="rd-payment-section">
+                        <div class="rd-section-title" style="margin-top: 0;">Payment Details</div>
+                        <div class="rd-payment-row">
+                            <span class="rd-line-label">RFID Used:</span>
+                            <span class="rd-line-value">₱${rfidUsed.toFixed(2)}</span>
+                        </div>
+                        <div class="rd-payment-row">
+                            <span class="rd-line-label">Credit (Utang):</span>
+                            <span class="rd-line-value">₱${creditAmt.toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    ${ memberSummary ? `
+                    <div class="rd-member-summary">
+                        <div class="rd-section-title" style="margin-top: 0; color: var(--accent);">Member Account Summary</div>
+                        <div class="rd-member-row">
+                            <span class="rd-line-label">Available Balance (Before):</span>
+                            <span class="rd-line-value">₱${parseFloat(memberSummary.balance_before||0).toFixed(2)}</span>
+                        </div>
+                        <div class="rd-member-row">
+                            <span class="rd-line-label">Available Balance (After):</span>
+                            <span class="rd-line-value">₱${parseFloat(memberSummary.balance_after||0).toFixed(2)}</span>
+                        </div>
+                        <div class="rd-member-row">
+                            <span class="rd-line-label">Utang Balance (Before):</span>
+                            <span class="rd-line-value">₱${parseFloat(memberSummary.utang_before||0).toFixed(2)}</span>
+                        </div>
+                        <div class="rd-member-row">
+                            <span class="rd-line-label">Utang Balance (After):</span>
+                            <span class="rd-line-value">₱${parseFloat(memberSummary.utang_after||0).toFixed(2)}</span>
+                        </div>
+                    </div>
+                    ` : '' }
+
+                    <div class="rd-thanks">Thank you for your purchase!</div>
+                </div>
+            `;
+
+            // Print version (hidden, thermal printer optimized)
+            const printHtml = `
+                <div id="receiptPaper" class="receipt-paper" style="display: none;">
+                    <div class="rp-center">
+                        <div class="rp-title">COOPERATIVE STORE</div>
+                        <div class="rp-sub">SELF-CHECKOUT RECEIPT</div>
+                    </div>
+                    <div class="rp-line"><span>Txn:</span><span>${txnShort}</span></div>
+                    <div class="rp-line"><span>Date:</span><span>${formattedDate}</span></div>
+                    ${ memberId ? `<div class="rp-line"><span>Member ID:</span><span>${memberId}</span></div>` : '' }
+                    <div class="rp-section-title">ITEMS</div>
+                    <ul class="rp-items">
+                        ${items.map(i => `
+                            <li>
+                                <div class="rp-line"><span>${i.product_name} ${i.quantity ? '('+i.quantity+')' : ''}</span><span>₱${parseFloat(i.total_price || (i.unit_price * i.quantity) || 0).toFixed(2)}</span></div>
+                            </li>
+                        `).join('')}
+                    </ul>
+                    <div class="rp-sep"></div>
+                    <div class="rp-line"><span>Vatable Sale</span><span>₱${vatableSale.toFixed(2)}</span></div>
+                    <div class="rp-line"><span>VAT (${(VAT_RATE*100).toFixed(0)}%)</span><span>₱${vatAmount.toFixed(2)}</span></div>
+                    <div class="rp-line"><span>Subtotal:</span><span>₱${subtotal.toFixed(2)}</span></div>
+                    <div class="rp-line"><span>Patronage Fee (${patronagePercent}%):</span><span>₱${patronageAmt.toFixed(2)}</span></div>
+                    <div class="rp-line rp-total"><span>Total:</span><span>₱${total.toFixed(2)}</span></div>
+
+                    <div class="rp-section-title">PAYMENT</div>
+                    <div class="rp-line"><span>RFID Used:</span><span>₱${rfidUsed.toFixed(2)}</span></div>
+                    <div class="rp-line"><span>Credit (Utang):</span><span>₱${creditAmt.toFixed(2)}</span></div>
+                    ${ memberSummary ? `
+                        <div class="rp-sep"></div>
+                        <div class="rp-line"><span>Available (Before)</span><span>₱${parseFloat(memberSummary.balance_before||0).toFixed(2)}</span></div>
+                        <div class="rp-line"><span>Available (After)</span><span>₱${parseFloat(memberSummary.balance_after||0).toFixed(2)}</span></div>
+                        <div class="rp-line"><span>Utang (Before)</span><span>₱${parseFloat(memberSummary.utang_before||0).toFixed(2)}</span></div>
+                        <div class="rp-line"><span>Utang (After)</span><span>₱${parseFloat(memberSummary.utang_after||0).toFixed(2)}</span></div>
+                    ` : '' }
+
+                    <div class="rp-center rp-thanks">Thank you for your purchase!</div>
+                </div>
+            `;
+
+            // Set both versions
+            document.getElementById('receiptContent').innerHTML = displayHtml + printHtml;
+
+            // Build plain-text receipt in the exact layout requested for local printing
+            (function buildPlainText() {
+                const lines = [];
+                function money(v) { return '₱' + parseFloat(v || 0).toFixed(2); }
+
+                lines.push('COOPERATIVE STORE');
+                lines.push('SELF-CHECKOUT RECEIPT');
+                lines.push('');
+                lines.push('Txn ID:');
+                lines.push(txnShort);
+                lines.push('Date:');
+                lines.push(new Date(txnDate).toLocaleString([], { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }));
+                lines.push('');
+                lines.push('ITEMS');
+                items.forEach(i => {
+                    const name = (i.product_name || '').toString();
+                    const qty = i.quantity ? `(${i.quantity})` : '';
+                    const total = money(i.total_price || (i.unit_price * i.quantity) || 0);
+                    lines.push(`${name} ${qty}`.trim());
+                    lines.push(total);
+                });
+                lines.push('');
+                lines.push('Vatable Sale:');
+                lines.push(money(vatableSale));
+                lines.push(`VAT (${(VAT_RATE*100).toFixed(0)}%):`);
+                lines.push(money(vatAmount));
+                lines.push('Subtotal:');
+                lines.push(money(subtotal));
+                lines.push(`Patronage Fee (${patronagePercent}%):`);
+                lines.push(money(patronageAmt));
+                lines.push('Total:');
+                lines.push(money(total));
+                lines.push('');
+                lines.push('PAYMENT');
+                lines.push('RFID Used:');
+                lines.push(money(rfidUsed));
+                lines.push('Credit (Utang):');
+                lines.push(money(creditAmt));
+                if (transaction.member) {
+                    lines.push('');
+                    lines.push('Member Available (Before):');
+                    lines.push(money(transaction.member.balance_before));
+                    lines.push('Member Available (After):');
+                    lines.push(money(transaction.member.balance_after));
+                    lines.push('Member Utang (Before):');
+                    lines.push(money(transaction.member.utang_before));
+                    lines.push('Member Utang (After):');
+                    lines.push(money(transaction.member.utang_after));
+                }
+                lines.push('');
+                lines.push('Thank you for your purchase!');
+
+                window.__lastReceiptText = lines.join('\r\n');
+            })();
+            // Also prepare a full HTML version for silent/auto printing so it
+            // matches the manual (visual) receipt template.
+            (function buildHtmlReceipt() {
+                try {
+                    const paperEl = document.getElementById('receiptPaper');
+                    if (!paperEl) {
+                        window.__lastReceiptHtml = null;
+                        return;
+                    }
+                    // Temporarily show the print version to capture its HTML
+                    const wasHidden = paperEl.style.display === 'none';
+                    if (wasHidden) paperEl.style.display = 'block';
+                    const paperHtml = paperEl.outerHTML;
+                    if (wasHidden) paperEl.style.display = 'none';
+                    const css = `
+                        <style>
+                            @page { size: 58mm auto; margin: 2mm; }
+                            html, body { width: 58mm; padding: 0; margin: 0; }
+                            .receipt-paper { font-family: "Courier New", monospace; font-size: 12pt; line-height: 1.45; width: 56mm; max-width: 56mm; margin: 0 auto; color: #000 !important; }
+                            .receipt-paper * { color: #000 !important; }
+                            .receipt-paper .rp-center { text-align: center; }
+                            .receipt-paper .rp-title { font-weight: 700; font-size: 13pt; margin: 2mm 0 1mm; }
+                            .receipt-paper .rp-sub { font-size: 11pt; margin-bottom: 2mm; }
+                            .receipt-paper .rp-line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+                            .receipt-paper .rp-sep { border-top: 1px dashed #000; margin: 2mm 0; }
+                            .receipt-paper .rp-section-title { margin: 1mm 0; font-weight: 700; }
+                            .receipt-paper .rp-items { list-style: none; padding: 0; margin: 0 0 2mm 0; }
+                            .receipt-paper .rp-items li { margin: 1mm 0; }
+                            .receipt-paper .rp-subline { font-size: 10pt; color: #000; }
+                            .receipt-paper .rp-total { font-weight: 700; font-size: 12pt; color: #c00 !important; }
+                            .receipt-paper .rp-box { border: 1px dashed #000; padding: 2mm; margin: 2mm 0; }
+                            .receipt-paper .rp-thanks { margin-top: 2mm; }
+                        </style>
+                    `;
+                    window.__lastReceiptHtml = `<!doctype html><html><head><meta charset="utf-8"><title>Receipt</title>${css}</head><body>${paperHtml}</body></html>`;
+                } catch (e) {
+                    window.__lastReceiptHtml = null;
+                }
+            })();
+            // Flag to auto-print once the modal is fully shown (respect user setting)
+            window.__autoPrintReceipt = isAutoPrintEnabled();
+            new bootstrap.Modal(document.getElementById('receiptModal')).show();
+        }
+
+        async function printReceipt() {
+            const paper = document.getElementById('receiptPaper');
+            // If direct (silent) printing is enabled, send the HTML/text to the
+            // server printing endpoint instead of opening the print dialog.
+            if (isDirectPrintEnabled() && (window.__lastReceiptHtml || window.__lastReceiptText)) {
+                const payload = window.__lastReceiptHtml ? { html: window.__lastReceiptHtml, text: window.__lastReceiptText } : { text: window.__lastReceiptText };
+                const ok = await attemptDirectPrint(payload);
+                if (ok) {
+                    try { const modalInstance = bootstrap.Modal.getInstance(document.getElementById('receiptModal')) || new bootstrap.Modal(document.getElementById('receiptModal')); modalInstance.hide(); } catch (e) {}
+                    setTimeout(() => { try { newTransaction(); } catch (e) {} }, 200);
+                    return;
+                }
+                showMessage('Direct print failed, opening print dialog...', 'warning');
+                // fall through to normal print dialog below
+            }
+
+            // When user clicks Print, treat it like an auto-print action so the modal
+            // will be closed and a new transaction started after printing completes.
+            window.__autoPrintReceiptActive = true;
+            // Ensure only the receipt is visible for printing
+            document.body.classList.add('print-receipt-only');
+
+            if (!paper) { try { window.print(); } finally { document.body.classList.remove('print-receipt-only'); } return; }
+            const css = `
+                <style>
+                    @page { size: 58mm auto; margin: 2mm; }
+                    html, body { width: 58mm; padding: 0; margin: 0; }
+                    .receipt-paper { font-family: "Courier New", monospace; font-size: 12pt; line-height: 1.45; width: 56mm; max-width: 56mm; margin: 0 auto; color: #000 !important; }
+                    .receipt-paper * { color: #000 !important; }
+                    .receipt-paper .rp-center { text-align: center; }
+                    .receipt-paper .rp-title { font-weight: 700; font-size: 13pt; margin: 2mm 0 1mm; }
+                    .receipt-paper .rp-sub { font-size: 11pt; margin-bottom: 2mm; }
+                    .receipt-paper .rp-line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+                    .receipt-paper .rp-sep { border-top: 1px dashed #000; margin: 2mm 0; }
+                    .receipt-paper .rp-section-title { margin: 1mm 0; font-weight: 700; }
+                    .receipt-paper .rp-items { list-style: none; padding: 0; margin: 0 0 2mm 0; }
+                    .receipt-paper .rp-items li { margin: 1mm 0; }
+                    .receipt-paper .rp-subline { font-size: 10pt; color: #000; }
+                    .receipt-paper .rp-total { font-weight: 700; font-size: 12pt; color: #c00 !important; }
+                    .receipt-paper .rp-box { border: 1px dashed #000; padding: 2mm; margin: 2mm 0; }
+                    .receipt-paper .rp-thanks { margin-top: 2mm; }
+                </style>
+            `;
+            const printWin = window.open('', 'RECEIPT_PRINT', 'width=420,height=600');
+            if (!printWin) { try { window.print(); } finally { document.body.classList.remove('print-receipt-only'); } return; }
+            printWin.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Receipt</title>${css}</head><body>${paper.outerHTML}</body></html>`);
+            printWin.document.close();
+            printWin.focus();
+            // Provide a fallback to close modal/new transaction in case afterprint doesn't fire across windows.
+            let fallbackFired = false;
+            const fallbackTimer = setTimeout(() => {
+                if (window.__autoPrintReceiptActive) {
+                    window.__autoPrintReceiptActive = false;
+                    fallbackFired = true;
+                    try {
+                        const modalEl = document.getElementById('receiptModal');
+                        const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                        modalInstance.hide();
+                    } catch (e) { /* ignore */ }
+                    setTimeout(() => { try { newTransaction(); } catch (e) {} }, 200);
+                }
+                try { printWin.close(); } catch (e) {}
+                document.body.classList.remove('print-receipt-only');
+            }, 2500);
+
+            printWin.onload = function() {
+                try { printWin.print(); } catch (e) {}
+                // Try to handle afterprint from the popup if available
+                try {
+                    printWin.onafterprint = function() {
+                        if (fallbackFired) return;
+                        clearTimeout(fallbackTimer);
+                        if (window.__autoPrintReceiptActive) {
+                            window.__autoPrintReceiptActive = false;
+                            try {
+                                const modalEl = document.getElementById('receiptModal');
+                                const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                                modalInstance.hide();
+                            } catch (e) { /* ignore */ }
+                            setTimeout(() => { try { newTransaction(); } catch (e) {} }, 200);
+                        }
+                        try { printWin.close(); } catch (e) {}
+                        document.body.classList.remove('print-receipt-only');
+                    };
+                } catch (e) {
+                    // ignore
+                }
+            };
+        }
+
+        function newTransaction() {
+            clearCart();
+        }
+
+        
+        function clearCart() {
+            cart = [];
+            currentMember = null;
+            document.getElementById('memberInfo').style.display = 'none';
+            updateCart();
+        }
+
+        // Note: barcodeInput Enter key handling is already done in the keydown event listener above (line 503)
+        // Removing duplicate keypress listener to prevent double-adding items
+
+        document.getElementById('rfidInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') scanRFID();
+        });
+
+        // Helpers to show/hide the RFID input area
+        function showRFIDInput() {
+            const wrapper = document.getElementById('rfidWrapper');
+            const rfidEl = document.getElementById('rfidInput');
+            if (!wrapper || !rfidEl) return;
+            wrapper.style.display = 'block';
+            rfidEl.focus();
+            // select value to make it obvious for keyboard-wedge scanners
+            rfidEl.select();
+        }
+
+        function hideRFIDInput() {
+            const wrapper = document.getElementById('rfidWrapper');
+            const rfidEl = document.getElementById('rfidInput');
+            if (!wrapper || !rfidEl) return;
+            wrapper.style.display = 'none';
+            rfidEl.value = '';
+        }
+
+        // Change quantity by delta (e.g., +/- buttons)
+        function changeQuantity(productId, delta) {
+            const idx = cart.findIndex(i => i.id === productId);
+            if (idx === -1) return;
+            const item = cart[idx];
+            const newQty = item.quantity + delta;
+            setQuantity(productId, newQty);
+        }
+
+        // Set absolute quantity from input; validates against available_stock
+        function setQuantity(productId, qty) {
+            const idx = cart.findIndex(i => i.id === productId);
+            if (idx === -1) return;
+            let n = parseInt(qty, 10);
+            if (isNaN(n) || n < 1) {
+                showMessage('Quantity must be at least 1', 'warning');
+                return;
+            }
+            const item = cart[idx];
+            const available = typeof item.available_stock !== 'undefined' ? item.available_stock : (item.stock || item.stock_quantity || 0);
+            if (n > available) {
+                showMessage(`Cannot set quantity. Only ${available} available.`, 'warning');
+                return;
+            }
+            cart[idx].quantity = n;
+            updateCart();
+        }
+
+        // Update cart quantity as user types (live updates)
+        function onQuantityInput(productId, inputEl) {
+            let raw = inputEl.value;
+            // allow empty string while typing but don't apply until number
+            if (raw === '') return;
+            let n = parseInt(raw, 10);
+            if (isNaN(n)) return;
+            if (n < 1) {
+                inputEl.value = 1;
+                n = 1;
+            }
+            const idx = cart.findIndex(i => i.id === productId);
+            if (idx === -1) return;
+            const item = cart[idx];
+            const available = typeof item.available_stock !== 'undefined' ? item.available_stock : (item.stock || item.stock_quantity || 0);
+            if (n > available) {
+                // clamp to available but leave input so user sees limit
+                inputEl.value = available;
+                n = available;
+                showMessage(`Only ${available} available.`, 'warning');
+            }
+            cart[idx].quantity = n;
+            updateCart();
+        }
+
+        // showMessage: display a transient toast message
+        // type: 'danger'|'warning'|'info'|'success'
+        function showMessage(message, type='danger', timeout=5000) {
+            const toastEl = document.getElementById('kioskToast');
+            const toastBody = document.getElementById('kioskToastBody');
+            if (!toastEl || !toastBody) {
+                // fallback to alert if toast container missing
+                alert(message);
+                return;
+            }
+
+            // map types to bg classes
+            const typeClassMap = {
+                'danger': 'bg-danger text-white',
+                'warning': 'bg-warning text-dark',
+                'info': 'bg-info text-dark',
+                'success': 'bg-success text-white'
+            };
+
+            // Reset classes then apply the chosen one
+            toastEl.className = 'toast align-items-center border-0';
+            const classes = typeClassMap[type] || typeClassMap['danger'];
+            toastEl.classList.add(...classes.split(' '));
+
+            toastBody.textContent = message;
+            // use Bootstrap Toast instance
+            const bsToast = new bootstrap.Toast(toastEl, { delay: timeout });
+            toastEl.style.display = 'block';
+            bsToast.show();
+        }
+
+        // Auto-detect RFID card input (keyboard-wedge or rapid input). Debounce to allow scanners to finish.
+        (function(){
+            const rfidEl = document.getElementById('rfidInput');
+            let rfidTimer = null;
+            const DEBOUNCE_MS = 200; // adjust to match scanner speed if needed
+
+            rfidEl.addEventListener('input', function() {
+                if (rfidTimer) clearTimeout(rfidTimer);
+                rfidTimer = setTimeout(() => {
+                    const val = rfidEl.value.trim();
+                    if (val) {
+                        scanRFID();
+                    }
+                }, DEBOUNCE_MS);
+            });
+
+            // After a successful scanRFID run, the scanRFID function clears and focuses the input.
+            // Ensure focus on page load for convenience.
+            window.addEventListener('load', () => { rfidEl.focus(); });
+        })();
+        // Initialize auto-print toggle state and bind change handler
+        (function(){
+            try {
+                const el = document.getElementById('autoPrintToggle');
+                if (!el) return;
+                // Set initial state
+                el.checked = isAutoPrintEnabled();
+                // Bind change
+                el.addEventListener('change', function() { setAutoPrintEnabled(this.checked); });
+                const d = document.getElementById('directPrintToggle');
+                if (d) {
+                    d.checked = isDirectPrintEnabled();
+                    d.addEventListener('change', function() { setDirectPrintEnabled(this.checked); });
+                }
+            } catch (e) { /* ignore */ }
+        })();
+
+        // Ensure only the receipt prints when user triggers print (Ctrl+P or menu) while receipt is shown
+        window.addEventListener('beforeprint', () => {
+            const modalEl = document.getElementById('receiptModal');
+            if (modalEl && modalEl.classList.contains('show')) {
+                document.body.classList.add('print-receipt-only');
+            }
+        });
+        window.addEventListener('afterprint', () => {
+            document.body.classList.remove('print-receipt-only');
+            // If we initiated an automatic print for the receipt, close modal and start a new transaction
+            if (window.__autoPrintReceiptActive) {
+                window.__autoPrintReceiptActive = false;
+                try {
+                    const modalEl = document.getElementById('receiptModal');
+                    const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                    modalInstance.hide();
+                } catch (e) { /* ignore */ }
+                // small delay to allow modal hide animation, then clear cart/start new transaction
+                setTimeout(() => { try { newTransaction(); } catch (e) {} }, 200);
+            }
+        });
+
+        // Auto-trigger printing when the receipt modal is fully shown.
+        // Use in-page `window.print()` together with the `print-receipt-only` CSS class
+        // to avoid popup blockers that can block new windows.
+        (function(){
+            const modalEl = document.getElementById('receiptModal');
+            if (!modalEl) return;
+            modalEl.addEventListener('shown.bs.modal', async () => {
+                if (window.__autoPrintReceipt) {
+                    window.__autoPrintReceipt = false;
+
+                    // Try server-side local print first (silent). If it succeeds, close and newTransaction.
+                    // Prefer sending the full HTML receipt when available so silent
+                    // printing produces the same layout as the manual template.
+                    const payload = window.__lastReceiptHtml ? { html: window.__lastReceiptHtml, text: window.__lastReceiptText } : { text: window.__lastReceiptText };
+                    if (window.__lastReceiptHtml || window.__lastReceiptText) {
+                        // If user chose direct print (no dialog), prefer silent server print
+                        if (isDirectPrintEnabled()) {
+                            const ok = await attemptDirectPrint(payload);
+                            if (ok) {
+                                try {
+                                    const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                                    modalInstance.hide();
+                                } catch (e) { /* ignore */ }
+                                setTimeout(() => { try { newTransaction(); } catch (e) {} }, 200);
+                                return;
+                            }
+                            showMessage('Direct print failed, opening print dialog...', 'warning');
+                            window.__autoPrintReceiptActive = true;
+                            document.body.classList.add('print-receipt-only');
+                            setTimeout(() => { try { window.print(); } catch (e) {} }, 300);
+                            return;
+                        }
+
+                        // Otherwise behave like before: try silent print then fallback to dialog
+                        const ok2 = await attemptDirectPrint(payload);
+                        if (ok2) {
+                            try {
+                                const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                                modalInstance.hide();
+                            } catch (e) { /* ignore */ }
+                            setTimeout(() => { try { newTransaction(); } catch (e) {} }, 200);
+                            return;
+                        }
+                        window.__autoPrintReceiptActive = true;
+                        document.body.classList.add('print-receipt-only');
+                        setTimeout(() => { try { window.print(); } catch (e) {} }, 300);
+                        return;
+                    }
+
+                    // Default fallback: in-page print
+                    window.__autoPrintReceiptActive = true;
+                    document.body.classList.add('print-receipt-only');
+                    setTimeout(() => { try { window.print(); } catch (e) {} }, 300);
+                }
+            });
+        })();
+
+        // Auto-logout after 5 minutes of inactivity
+        (function() {
+            const INACTIVITY_TIMEOUT = 1 * 60 * 1000; // 5 minutes in milliseconds
+            const WARNING_TIME = 30 * 1000; // 30 seconds before logout
+            const LOGOUT_URL = '{% url "kiosk_logout" %}';
+            let inactivityTimer = null;
+            let warningTimer = null;
+            let warningShown = false;
+
+            // Events that indicate user activity
+            const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click', 'input'];
+            
+            function clearAllTimers() {
+                if (inactivityTimer) {
+                    clearTimeout(inactivityTimer);
+                    inactivityTimer = null;
+                }
+                if (warningTimer) {
+                    clearTimeout(warningTimer);
+                    warningTimer = null;
+                }
+                warningShown = false;
+            }
+            
+            function resetInactivityTimer() {
+                // Clear existing timers
+                clearAllTimers();
+                
+                // Set warning timer (4.5 minutes)
+                warningTimer = setTimeout(() => {
+                    warningShown = true;
+                    showMessage('You will be logged out in 30 seconds due to inactivity.', 'warning', 30000);
+                }, INACTIVITY_TIMEOUT - WARNING_TIME);
+                
+                // Set logout timer (5 minutes)
+                inactivityTimer = setTimeout(() => {
+                    window.location.href = LOGOUT_URL;
+                }, INACTIVITY_TIMEOUT);
+            }
+
+            // Initialize timer on page load
+            resetInactivityTimer();
+
+            // Listen for user activity events
+            activityEvents.forEach(event => {
+                document.addEventListener(event, resetInactivityTimer, true);
+            });
+
+            // Also track visibility changes (tab focus)
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) {
+                    resetInactivityTimer();
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
