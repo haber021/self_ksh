@@ -205,11 +205,11 @@
                 </div>
             </div>
 
-            <div class="divider">
+            <!-- <div class="divider">
                 <span>OR</span>
-            </div>
+            </div> -->
 
-            <form method="POST" action="{% url 'root_login' %}" id="loginForm">
+            <!-- <form method="POST" action="{% url 'root_login' %}" id="loginForm">
                 {% csrf_token %}
                 {% if request.GET.next %}
                     <input type="hidden" name="next" value="{{ request.GET.next }}">
@@ -247,7 +247,7 @@
                 <button type="submit" class="btn btn-login">
                     <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
                 </button>
-            </form>
+            </form> -->
 
         </div>
     </div>

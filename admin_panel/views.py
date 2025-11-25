@@ -102,6 +102,24 @@ def is_admin_user(user):
     return False
 
 
+def is_cashier_or_admin(user):
+    """Check if a user is a cashier or admin (staff/superuser or linked to Member with cashier/admin role)"""
+    if user.is_staff or user.is_superuser:
+        return True
+    
+    # Check if user is linked to a Member with cashier or admin role
+    try:
+        member = Member.objects.get(user=user)
+        if member.role in ['cashier', 'admin'] and member.is_active:
+            return True
+    except Member.DoesNotExist:
+        pass
+    except Exception:
+        pass
+    
+    return False
+
+
 @login_required
 def dashboard(request):
     # Ensure only admin users can access dashboard
@@ -826,27 +844,60 @@ def generate_refund_receipt_html(transaction, refund_reason, member, balance_bef
 
 @login_required
 def process_refund(request):
-    """Refund management page for customer care"""
-    if is_admin_user(request.user):
-        return redirect('dashboard')
+    """Refund management page - accessible to all logged-in users
+    
+    Access control:
+    - Regular members: can only search and refund their own transactions
+    - Cashiers and admins: can search and refund all transactions
+    """
+    # All logged-in users can access the refund page
+    # Access control is enforced at the API level
     return render(request, 'admin_panel/refund.html')
 
 
 @login_required
 @require_http_methods(["GET"])
 def api_search_transactions_for_refund(request):
-    """Search transactions by transaction number for refund processing"""
+    """Search transactions by transaction number for refund processing
+    
+    Access control:
+    - Regular members: can only search their own transactions
+    - Cashiers and admins: can search all transactions
+    """
     query = request.GET.get('q', '').strip()
     
     if not query or len(query) < 2:
         return JsonResponse({'success': True, 'transactions': []})
     
     try:
-        # Search by transaction number
+        # Check if user is cashier or admin
+        has_full_access = is_cashier_or_admin(request.user)
+        
+        # Base query for completed transactions
         transactions = Transaction.objects.filter(
             transaction_number__icontains=query,
             status='completed'
-        ).select_related('member').prefetch_related('items').order_by('-created_at')[:20]
+        ).select_related('member').prefetch_related('items')
+        
+        # If user is not cashier/admin, filter to only their own transactions
+        if not has_full_access:
+            # Get member associated with the logged-in user
+            try:
+                member = Member.objects.get(user=request.user, is_active=True)
+                transactions = transactions.filter(member=member)
+            except Member.DoesNotExist:
+                # User doesn't have a member account, return empty results
+                return JsonResponse({'success': True, 'transactions': []})
+            except Member.MultipleObjectsReturned:
+                # Multiple members found, use the first one
+                member = Member.objects.filter(user=request.user, is_active=True).first()
+                if member:
+                    transactions = transactions.filter(member=member)
+                else:
+                    return JsonResponse({'success': True, 'transactions': []})
+        
+        # Order and limit results
+        transactions = transactions.order_by('-created_at')[:20]
         
         results = []
         for transaction in transactions:
@@ -879,7 +930,12 @@ def api_search_transactions_for_refund(request):
 @login_required
 @require_http_methods(["POST"])
 def api_process_refund(request):
-    """Process a refund for a transaction"""
+    """Process a refund for a transaction
+    
+    Access control:
+    - Regular members: can only refund their own transactions
+    - Cashiers and admins: can refund any transaction
+    """
     try:
         data = json.loads(request.body)
         transaction_id = data.get('transaction_id')
@@ -892,6 +948,23 @@ def api_process_refund(request):
             transaction = Transaction.objects.get(id=transaction_id, status='completed')
         except Transaction.DoesNotExist:
             return JsonResponse({'success': False, 'error': 'Transaction not found or not eligible for refund'})
+        
+        # Check access control: regular members can only refund their own transactions
+        has_full_access = is_cashier_or_admin(request.user)
+        if not has_full_access:
+            # Get member associated with the logged-in user
+            try:
+                user_member = Member.objects.get(user=request.user, is_active=True)
+            except Member.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'You do not have permission to process refunds'}, status=403)
+            except Member.MultipleObjectsReturned:
+                user_member = Member.objects.filter(user=request.user, is_active=True).first()
+                if not user_member:
+                    return JsonResponse({'success': False, 'error': 'You do not have permission to process refunds'}, status=403)
+            
+            # Check if the transaction belongs to the user
+            if transaction.member != user_member:
+                return JsonResponse({'success': False, 'error': 'You can only refund your own transactions'}, status=403)
         
         member = transaction.member
         

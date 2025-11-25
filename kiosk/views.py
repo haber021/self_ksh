@@ -141,6 +141,7 @@ def scan_rfid(request):
                     'rfid': member.rfid_card_number,
                     'balance': str(member.balance),
                     'utang_balance': str(member.utang_balance),
+                    'role': member.role,
                 }
             })
         except Member.DoesNotExist:
@@ -184,13 +185,16 @@ def process_payment(request):
                 member = Member.objects.get(id=member_id, is_active=True)
             except Member.DoesNotExist:
                 return JsonResponse({'success': False, 'error': 'Member not found or inactive'})
-            # For debit/credit payments require PIN validation
+            # For debit/credit payments require PIN validation (unless member is cashier/admin)
             if payment_method in ['debit', 'credit']:
-                pin = data.get('pin')
-                if not pin:
-                    return JsonResponse({'success': False, 'error': 'PIN is required for member payments'})
-                if not member.check_pin(pin):
-                    return JsonResponse({'success': False, 'error': 'Invalid PIN'})
+                is_cashier = member.role in ['cashier', 'admin']
+                if not is_cashier:
+                    pin = data.get('pin')
+                    if not pin:
+                        return JsonResponse({'success': False, 'error': 'PIN is required for member payments'})
+                    if not member.check_pin(pin):
+                        return JsonResponse({'success': False, 'error': 'Invalid PIN'})
+                # Cashiers and admins can proceed without PIN (direct access)
         else:
             if payment_method in ['debit', 'credit']:
                 return JsonResponse({'success': False, 'error': 'Member required for debit/credit payment'})

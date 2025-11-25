@@ -57,6 +57,8 @@
         /* Member info card */
         #memberInfo{display:none;border-radius:10px;padding:14px;background:linear-gradient(180deg,#eaf8f0, #e6fbf2);border:1px solid rgba(31,122,58,0.08);box-shadow:0 4px 12px rgba(31,122,58,0.04)}
         #memberInfo strong{color:var(--accent)}
+        #memberInfo .badge{font-size:0.75rem;padding:4px 8px;vertical-align:middle}
+        #memberInfo.cashier-mode{background:linear-gradient(180deg,#fff3cd, #ffeaa7);border-color:rgba(255,193,7,0.3);box-shadow:0 4px 12px rgba(255,193,7,0.15)}
 
         /* Receipt tweaks (keep previous print rules) */
         /* Print: show only receipt when printing */
@@ -597,12 +599,22 @@
             .then(data => {
                 if (data.success) {
                     currentMember = data.member;
-                    document.getElementById('memberInfo').innerHTML = `
-                        <strong>Member:</strong> ${data.member.name}<br>
+                    const isCashier = data.member.role === 'cashier' || data.member.role === 'admin';
+                    const roleBadge = isCashier ? '<span class="badge bg-warning text-dark ms-2"><i class="bi bi-shield-check"></i> Cashier</span>' : '';
+                    const memberInfoEl = document.getElementById('memberInfo');
+                    memberInfoEl.innerHTML = `
+                        <strong>Member:</strong> ${data.member.name}${roleBadge}<br>
                         <strong>Balance:</strong> ₱${parseFloat(data.member.balance).toFixed(2)}<br>
                         <strong>Utang:</strong> ₱${parseFloat(data.member.utang_balance).toFixed(2)}
+                        ${isCashier ? '<br><small class="text-success"><i class="bi bi-lightning-fill"></i> Direct access enabled - PIN not required</small>' : ''}
                     `;
-                    document.getElementById('memberInfo').style.display = 'block';
+                    // Apply cashier styling
+                    if (isCashier) {
+                        memberInfoEl.classList.add('cashier-mode');
+                    } else {
+                        memberInfoEl.classList.remove('cashier-mode');
+                    }
+                    memberInfoEl.style.display = 'block';
                     document.getElementById('rfidInput').value = '';
                     // Notify any waiting code that a member was scanned
                     try {
@@ -907,19 +919,33 @@
                     waitForMember.then(member => {
                         hideRFIDInput();
                         if (member) {
-                            // proceed to collect PIN
-                            showPinModal().then(pin => { if (pin) processPayment(method, pin); });
+                            // Check if member is cashier/admin - skip PIN for direct access
+                            const isCashier = member.role === 'cashier' || member.role === 'admin';
+                            if (isCashier) {
+                                // Cashier direct access - no PIN required
+                                processPayment(method, null);
+                            } else {
+                                // Regular member - require PIN
+                                showPinModal().then(pin => { if (pin) processPayment(method, pin); });
+                            }
                         } else {
                             showMessage('Member not scanned. Payment cancelled.', 'warning');
                         }
                     });
                     return;
                 }
-                // member exists, ask for PIN
-                showPinModal().then(pin => {
-                    if (!pin) return; // cancelled
-                    processPayment(method, pin);
-                });
+                // member exists, check if cashier for direct access
+                const isCashier = currentMember.role === 'cashier' || currentMember.role === 'admin';
+                if (isCashier) {
+                    // Cashier direct access - no PIN required
+                    processPayment(method, null);
+                } else {
+                    // Regular member - ask for PIN
+                    showPinModal().then(pin => {
+                        if (!pin) return; // cancelled
+                        processPayment(method, pin);
+                    });
+                }
                 return;
             }
             // cash or other methods
