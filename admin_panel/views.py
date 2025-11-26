@@ -721,18 +721,14 @@ def generate_refund_receipt_data(transaction, refund_reason, member, balance_bef
     lines.append(money(transaction.total_amount))
     lines.append('')
     
-    # Payment method refund info
+    # Payment method refund info - All refunds now go to balance
     lines.append('REFUND METHOD:')
-    if transaction.payment_method == 'debit' and member and balance_before is not None:
+    if member and balance_before is not None:
         lines.append('Refunded to Member Balance')
         lines.append(f'Balance Before: {money(balance_before)}')
         lines.append(f'Balance After: {money(balance_after)}')
-    elif transaction.payment_method == 'credit' and member and utang_before is not None:
-        lines.append('Reduced from Utang')
-        lines.append(f'Utang Before: {money(utang_before)}')
-        lines.append(f'Utang After: {money(utang_after)}')
-    elif transaction.payment_method == 'cash':
-        lines.append('Cash Refund')
+    else:
+        lines.append('Refunded to Member Balance')
     lines.append('')
     
     # Reason if provided
@@ -761,10 +757,10 @@ def generate_refund_receipt_html(transaction, refund_reason, member, balance_bef
     shop_address = getattr(settings, 'SHOP_ADDRESS', 'Address: Lorem Ipsum, 23-10')
     shop_phone = getattr(settings, 'SHOP_PHONE', 'Telp. 11223344')
     
-    # Determine refund method display
-    show_balance_refund = (transaction.payment_method == 'debit' and member and balance_before is not None)
-    show_utang_refund = (transaction.payment_method == 'credit' and member and utang_before is not None)
-    show_cash_refund = (transaction.payment_method == 'cash')
+    # Determine refund method display - All refunds now go to balance
+    show_balance_refund = (member and balance_before is not None)
+    show_utang_refund = False  # No longer reducing utang, all refunds go to balance
+    show_cash_refund = False  # Cash refunds also go to balance now
     
     context = {
         'transaction': transaction,
@@ -870,6 +866,18 @@ def view_refund_receipt(request, transaction_id):
             balance_after = balance_txn.balance_after
             utang_before = balance_txn.utang_before
             utang_after = balance_txn.utang_after
+        elif member:
+            # For cash refunds or if balance transaction not found, show current balance
+            # Balance doesn't change for cash refunds, so before = after = current balance
+            if transaction.payment_method == 'cash':
+                balance_before = member.balance
+                balance_after = member.balance
+                utang_before = member.utang_balance
+                utang_after = member.utang_balance
+            else:
+                # For other cases, try to get current balance as fallback
+                balance_after = member.balance
+                utang_after = member.utang_balance
         
         # Prepare context for template
         from django.conf import settings
@@ -881,10 +889,10 @@ def view_refund_receipt(request, transaction_id):
         shop_address = getattr(settings, 'SHOP_ADDRESS', 'Address: Lorem Ipsum, 23-10')
         shop_phone = getattr(settings, 'SHOP_PHONE', 'Telp. 11223344')
         
-        show_balance_refund = (transaction.payment_method == 'debit' and member and balance_before is not None)
-        show_utang_refund = (transaction.payment_method == 'credit' and member and utang_before is not None)
-        show_cash_refund = (transaction.payment_method == 'cash')
-        
+        # All refunds now go to balance, regardless of original payment method
+        show_balance_refund = (member and balance_before is not None)
+        show_utang_refund = False  # No longer reducing utang, all refunds go to balance
+        show_cash_refund = False  # Cash refunds also go to balance now        
         context = {
             'transaction': transaction,
             'member': member,
@@ -1022,6 +1030,11 @@ def view_debit_credit_receipt(request, transaction_id):
         merchant_id = getattr(settings, 'MERCHANT_ID', None)
         terminal_id = getattr(settings, 'TERMINAL_ID', None)
         approval_code = getattr(settings, 'APPROVAL_CODE', None)
+        
+        # Refresh member to get latest balance and credit balance for transparency
+        # Show credit balance on all debit/credit receipts with members
+        if transaction.member:
+            transaction.member.refresh_from_db()
         
         context = {
             'transaction': transaction,
@@ -1163,14 +1176,14 @@ def api_process_refund(request):
         utang_before = None
         utang_after = None
         
-        # Process refund based on payment method
-        if transaction.payment_method == 'debit' and member:
-            # Refund to balance
+        # Process refund - ALL refunds go directly to card balance regardless of payment method
+        if member:
+            # Refund to balance for all payment methods
             balance_before = member.balance
+            utang_before = member.utang_balance
             member.add_balance(transaction.total_amount)
             balance_after = member.balance
-            utang_before = member.utang_balance
-            utang_after = member.utang_balance
+            utang_after = member.utang_balance  # Utang remains unchanged
             
             # Record balance transaction
             BalanceTransaction.objects.create(
@@ -1181,28 +1194,8 @@ def api_process_refund(request):
                 balance_after=balance_after,
                 utang_before=utang_before,
                 utang_after=utang_after,
-                notes=f"Refund for transaction {transaction.transaction_number}. {refund_reason}" if refund_reason else f"Refund for transaction {transaction.transaction_number}"
+                notes=f"Refund for transaction {transaction.transaction_number} (Original: {transaction.get_payment_method_display()}). {refund_reason}" if refund_reason else f"Refund for transaction {transaction.transaction_number} (Original: {transaction.get_payment_method_display()})"
             )
-        
-        elif transaction.payment_method == 'credit' and member:
-            # Reduce utang
-            utang_before = member.utang_balance
-            balance_before = member.balance
-            if member.reduce_utang(transaction.total_amount):
-                utang_after = member.utang_balance
-                balance_after = member.balance
-                
-                # Record balance transaction
-                BalanceTransaction.objects.create(
-                    member=member,
-                    transaction_type='utang_payment',
-                    amount=transaction.total_amount,
-                    balance_before=balance_before,
-                    balance_after=balance_after,
-                    utang_before=utang_before,
-                    utang_after=utang_after,
-                    notes=f"Refund for transaction {transaction.transaction_number}. {refund_reason}" if refund_reason else f"Refund for transaction {transaction.transaction_number}"
-                )
         
         # Restore product stock
         for item in transaction.items.all():

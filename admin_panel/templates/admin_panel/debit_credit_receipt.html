@@ -233,12 +233,6 @@
                 <span>****{{ transaction.member.rfid_card_number|slice:"-4:" }}</span>
             </div>
             {% endif %}
-            {% if transaction.member.member_id %}
-            <div class="rp-line">
-                <span class="rp-line-label">Member ID:</span>
-                <span>{{ transaction.member.member_id }}</span>
-            </div>
-            {% endif %}
         </div>
         {% else %}
         <div class="rp-member-info">
@@ -316,13 +310,17 @@
         {% endif %}
     </div>
 
-    <!-- Available Balance (if member exists) -->
+    <!-- Available Balance and Credit Balance (if member exists) -->
     {% if transaction.member %}
     <div class="rp-separator">******************************</div>
     <div class="rp-section">
         <div class="rp-line">
             <span class="rp-line-label">Available Balance:</span>
             <span>₱{{ transaction.member.available_balance|floatformat:2 }}</span>
+        </div>
+        <div class="rp-line">
+            <span class="rp-line-label">Credit Balance (Utang):</span>
+            <span>₱{{ transaction.member.utang_balance|floatformat:2 }}</span>
         </div>
     </div>
     {% endif %}

@@ -568,7 +568,7 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="cashInput" class="form-label fw-bold" style="color: var(--accent);">Cash Received:</label>
+                        <label for="cashInput" class="form-label fw-bold" style="color: var(--accent);">Cash:</label>
                         <div class="input-group">
                             <span class="input-group-text" style="background: rgba(31,122,58,0.1); color: var(--accent); border-color: rgba(31,122,58,0.2);">₱</span>
                             <input type="number" id="cashInput" class="form-control form-control-lg text-end" step="0.01" min="0" placeholder="0.00" autofocus style="border-color: rgba(31,122,58,0.2);">
@@ -655,7 +655,7 @@
                     addToCart(data.product);
                     document.getElementById('barcodeInput').value = '';
                 } else {
-                    // Show the actual error message from server (e.g., expired product, out of stock, etc.)
+                    // Show the actual error message from server (e.g., out of stock, etc.)
                     showMessage(data.error || 'Product not found!', 'danger');
                 }
             });
@@ -1262,7 +1262,7 @@
 
             // Friendly data fallbacks
             const txnDate = transaction.date || transaction.created_at || new Date().toISOString();
-            const memberId = transaction.member_id || (transaction.member && (transaction.member.member_id || transaction.member.id)) || '';
+            const memberName = (transaction.member && transaction.member.name) || (transaction.member && transaction.member.full_name) || '';
             const items = transaction.items || [];
             const subtotal = parseFloat(transaction.subtotal || transaction.vatable_sale || 0);
             const patronagePercent = parseFloat(transaction.patronage_percent || 2);
@@ -1270,7 +1270,12 @@
             const total = parseFloat(transaction.total_amount || subtotal + patronageAmt || 0);
             // For cash payments, rfidUsed should be 0; for debit, use amount_from_balance
             const rfidUsed = transaction.payment_method === 'cash' ? 0 : parseFloat(transaction.amount_paid_by_member || transaction.paid_by_member || transaction.rfid_used || transaction.amount_from_balance || 0);
-            const creditAmt = parseFloat(transaction.amount_to_utang || transaction.credit || 0);
+            // For credit payments, amount_to_utang should equal total_amount
+            // If payment_method is credit but amount_to_utang is missing/0, use total_amount
+            let creditAmt = parseFloat(transaction.amount_to_utang || transaction.credit || 0);
+            if (transaction.payment_method === 'credit' && creditAmt === 0) {
+                creditAmt = total;
+            }
 
             // Compute VAT and vatable sale for transparency (use transaction values when provided)
             let vatAmount = parseFloat(transaction.vat_amount || 0);
@@ -1316,10 +1321,10 @@
                             <span class="rd-info-label">Date & Time:</span>
                             <span class="rd-info-value">${formattedDate}</span>
                         </div>
-                        ${ memberId ? `
+                        ${ memberName ? `
                         <div class="rd-info-row">
-                            <span class="rd-info-label">Member ID:</span>
-                            <span class="rd-info-value">${memberId}</span>
+                            <span class="rd-info-label">Member Name:</span>
+                            <span class="rd-info-value">${memberName}</span>
                         </div>
                         ` : '' }
                     </div>
@@ -1368,7 +1373,7 @@
                         <div class="rd-section-title" style="margin-top: 0;">Payment Details</div>
                         ${ transaction.payment_method === 'cash' ? `
                         <div class="rd-payment-row">
-                            <span class="rd-line-label">Cash Received:</span>
+                            <span class="rd-line-label">Cash:</span>
                             <span class="rd-line-value">₱${parseFloat(transaction.amount_paid || total).toFixed(2)}</span>
                         </div>
                         ${ parseFloat(transaction.change_amount || 0) > 0 ? `
@@ -1384,7 +1389,7 @@
                             <span class="rd-line-value">₱${rfidUsed.toFixed(2)}</span>
                         </div>
                         ` : '' }
-                        ${ transaction.payment_method === 'credit' || creditAmt > 0 ? `
+                        ${ transaction.payment_method === 'credit' ? `
                         <div class="rd-payment-row">
                             <span class="rd-line-label">Credit (Utang):</span>
                             <span class="rd-line-value">₱${creditAmt.toFixed(2)}</span>
@@ -1398,6 +1403,12 @@
                             <span class="rd-line-label">Balance:</span>
                             <span class="rd-line-value">₱${parseFloat(memberSummary.balance||memberSummary.available_balance||0).toFixed(2)}</span>
                         </div>
+                        ${ transaction.payment_method === 'credit' ? `
+                        <div class="rd-member-row">
+                            <span class="rd-line-label">Credit Balance (Utang):</span>
+                            <span class="rd-line-value">₱${parseFloat(memberSummary.utang_after || memberSummary.utang_balance || transaction.new_utang_balance || 0).toFixed(2)}</span>
+                        </div>
+                        ` : '' }
                     </div>
                     ` : '' }
 
@@ -1414,7 +1425,7 @@
                     </div>
                     <div class="rp-line"><span>Txn:</span><span>${txnShort}</span></div>
                     <div class="rp-line"><span>Date:</span><span>${formattedDate}</span></div>
-                    ${ memberId ? `<div class="rp-line"><span>Member ID:</span><span>${memberId}</span></div>` : '' }
+                    ${ memberName ? `<div class="rp-line"><span>Member Name:</span><span>${memberName}</span></div>` : '' }
                     <div class="rp-section-title">ITEMS</div>
                     <ul class="rp-items">
                         ${items.map(i => {
@@ -1440,7 +1451,7 @@
 
                     <div class="rp-section-title">PAYMENT</div>
                     ${ transaction.payment_method === 'cash' ? `
-                    <div class="rp-line"><span>Cash Received:</span><span>₱${parseFloat(transaction.amount_paid || total).toFixed(2)}</span></div>
+                    <div class="rp-line"><span>Cash:</span><span>₱${parseFloat(transaction.amount_paid || total).toFixed(2)}</span></div>
                     ${ parseFloat(transaction.change_amount || 0) > 0 ? `
                     <div class="rp-line"><span>Change:</span><span>₱${parseFloat(transaction.change_amount || 0).toFixed(2)}</span></div>
                     ` : '' }
@@ -1448,12 +1459,15 @@
                     ${ transaction.payment_method === 'debit' || rfidUsed > 0 ? `
                     <div class="rp-line"><span>RFID Used:</span><span>₱${rfidUsed.toFixed(2)}</span></div>
                     ` : '' }
-                    ${ transaction.payment_method === 'credit' || creditAmt > 0 ? `
+                    ${ transaction.payment_method === 'credit' ? `
                     <div class="rp-line"><span>Credit (Utang):</span><span>₱${creditAmt.toFixed(2)}</span></div>
                     ` : '' }
                     ${ memberSummary && transaction.payment_method !== 'cash' ? `
                         <div class="rp-sep"></div>
                         <div class="rp-line"><span> Balance</span><span>₱${parseFloat(memberSummary.balance||memberSummary.available_balance||0).toFixed(2)}</span></div>
+                        ${ transaction.payment_method === 'credit' ? `
+                        <div class="rp-line"><span>Credit Balance (Utang):</span><span>₱${parseFloat(memberSummary.utang_after || memberSummary.utang_balance || transaction.new_utang_balance || 0).toFixed(2)}</span></div>
+                        ` : '' }
                     ` : '' }
 
                     <div class="rp-center rp-thanks">Thank you for your purchase!</div>
@@ -1498,7 +1512,7 @@
                 lines.push('');
                 lines.push('PAYMENT');
                 if (transaction.payment_method === 'cash') {
-                    lines.push('Cash Received:');
+                    lines.push('Cash:');
                     lines.push(money(transaction.amount_paid || total));
                     if (parseFloat(transaction.change_amount || 0) > 0) {
                         lines.push('Change:');
@@ -1509,7 +1523,7 @@
                         lines.push('RFID Used:');
                         lines.push(money(rfidUsed));
                     }
-                    if (transaction.payment_method === 'credit' || creditAmt > 0) {
+                    if (transaction.payment_method === 'credit') {
                         lines.push('Credit (Utang):');
                         lines.push(money(creditAmt));
                     }
@@ -1518,6 +1532,10 @@
                     lines.push('');
                     lines.push(' Balance:');
                     lines.push(money(transaction.member.balance || transaction.member.available_balance || 0));
+                    if (transaction.payment_method === 'credit') {
+                        lines.push('Credit Balance (Utang):');
+                        lines.push(money(transaction.member.utang_after || transaction.member.utang_balance || transaction.new_utang_balance || 0));
+                    }
                 }
                 lines.push('');
                 lines.push('Thank you for your purchase!');

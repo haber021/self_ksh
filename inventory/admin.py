@@ -11,8 +11,8 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ['name', 'barcode', 'category', 'price', 'stock_quantity', 'expiration_date', 'is_low_stock', 'is_active']
-    list_filter = ['is_active', 'category', 'expiration_date']
+    list_display = ['name', 'barcode', 'category', 'price', 'stock_quantity', 'is_low_stock', 'is_active']
+    list_filter = ['is_active', 'category']
     search_fields = ['name', 'barcode']
     readonly_fields = ['created_at', 'updated_at']
     fieldsets = (
@@ -24,10 +24,6 @@ class ProductAdmin(admin.ModelAdmin):
         }),
         ('Inventory', {
             'fields': ('stock_quantity', 'low_stock_threshold')
-        }),
-        ('Safety & Expiration', {
-            'fields': ('expiration_date',),
-            'description': 'Set expiration date for safety tracking. Products expiring within 7 days will be highlighted.'
         }),
         ('Status', {
             'fields': ('is_active',)

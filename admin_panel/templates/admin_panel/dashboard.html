@@ -119,6 +119,35 @@
       display: block;
     }
 
+    .chart-card.expanded {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 9999;
+      border-radius: 0;
+      padding: 30px;
+      overflow-y: auto;
+      background: var(--panel);
+    }
+
+    .chart-card.expanded .chart-wrapper {
+      height: calc(100vh - 150px) !important;
+      max-height: none !important;
+    }
+
+    .expand-chart-btn {
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .expand-chart-btn:hover {
+      transform: scale(1.1);
+    }
+
     .table-card table {
       font-size: 0.9rem;
     }
@@ -142,6 +171,52 @@
       padding: 4px 12px;
       font-size: 0.8rem;
       font-weight: 600;
+    }
+
+    #paymentMixCenter {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    #paymentMixSummary {
+      border-top: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    #paymentMethodBreakdown .col-6 > div {
+      transition: all 0.2s ease;
+    }
+
+    #paymentMethodBreakdown .col-6 > div:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    #salesTrendStats .col-6,
+    #salesTrendStats .col-md-3 {
+      transition: transform 0.2s ease;
+    }
+
+    #salesTrendStats .col-6:hover,
+    #salesTrendStats .col-md-3:hover {
+      transform: translateY(-2px);
+    }
+
+    #salesTrendStats .bg-light {
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+      transition: all 0.2s ease;
+    }
+
+    #salesTrendStats .bg-light:hover {
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
     }
   </style>
 </head>
@@ -279,15 +354,62 @@
 
     <section class="row g-4 mb-4">
       <div class="col-xl-8">
-        <div class="chart-card">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-              <h5 class="mb-0">Sales Trend (14 days)</h5>
-              <small class="text-muted">Revenue snapshot for the last two weeks</small>
+        <div class="chart-card" id="salesTrendCard">
+          <div class="d-flex justify-content-between align-items-start mb-4">
+            <div class="flex-grow-1">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #1f7a3a 0%, #0b5f3a 100%); width: 40px; height: 40px; font-size: 1.1rem;">
+                  <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <div>
+                  <h5 class="mb-0 fw-bold">Sales Trend (14 days)</h5>
+                  <small class="text-muted">Revenue snapshot for the last two weeks</small>
+                </div>
+              </div>
             </div>
-            <span class="badge bg-success-subtle text-success rounded-pill"><i class="bi bi-graph-up me-1"></i>Live</span>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">
+                <i class="bi bi-circle-fill me-1" style="font-size: 0.5rem; animation: pulse 2s infinite;"></i>Live
+              </span>
+              <button type="button" class="btn btn-sm btn-outline-success rounded-pill expand-chart-btn" id="expandSalesChartBtn" title="Expand chart">
+                <i class="bi bi-arrows-fullscreen" id="expandSalesChartIcon"></i>
+              </button>
+            </div>
           </div>
-          <div class="chart-wrapper" style="height:240px; max-height:240px;">
+          
+          <!-- Summary Statistics -->
+          <div class="row g-3 mb-4" id="salesTrendStats">
+            <div class="col-6 col-md-3">
+              <div class="bg-light rounded-3 p-3 text-center border-start border-4 border-success">
+                <div class="text-muted small mb-1" style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;">Total Revenue</div>
+                <div class="h5 mb-0 fw-bold text-success" id="total14DayRevenue">₱0.00</div>
+                <div class="text-muted" style="font-size: 0.75rem;">14 days</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="bg-light rounded-3 p-3 text-center border-start border-4 border-primary">
+                <div class="text-muted small mb-1" style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;">Daily Average</div>
+                <div class="h5 mb-0 fw-bold text-primary" id="avgDailyRevenue">₱0.00</div>
+                <div class="text-muted" style="font-size: 0.75rem;">per day</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="bg-light rounded-3 p-3 text-center border-start border-4 border-warning">
+                <div class="text-muted small mb-1" style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;">Peak Day</div>
+                <div class="h6 mb-0 fw-bold text-warning" id="peakDayAmount">₱0.00</div>
+                <div class="text-muted" style="font-size: 0.7rem;" id="peakDayLabel">-</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="bg-light rounded-3 p-3 text-center border-start border-4" id="growthCard" style="border-color: #10b981;">
+                <div class="text-muted small mb-1" style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;">Growth</div>
+                <div class="h5 mb-0 fw-bold" id="growthPercentage" style="color: #10b981;">0%</div>
+                <div class="text-muted" style="font-size: 0.7rem;" id="growthLabel">Week over week</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="chart-wrapper" id="salesTrendWrapper" style="height:280px; max-height:280px;">
             <canvas id="salesTrendChart"></canvas>
           </div>
         </div>
@@ -296,12 +418,26 @@
         <div class="chart-card mb-4">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
-              <h5 class="mb-0">Payment Mix</h5>
-              <small class="text-muted">Distribution by method</small>
+              <h5 class="mb-0 d-flex align-items-center">
+                <i class="bi bi-pie-chart-fill me-2 text-primary"></i>Payment Mix
+              </h5>
+              <small class="text-muted">Distribution by payment method</small>
+            </div>
+            <span class="badge bg-primary-subtle text-primary rounded-pill">
+              <i class="bi bi-activity me-1"></i>Live
+            </span>
+          </div>
+          <div class="chart-wrapper position-relative" style="height:220px; max-height:220px;">
+            <canvas id="paymentMixChart"></canvas>
+            <div id="paymentMixCenter" class="position-absolute top-50 start-50 translate-middle text-center" style="pointer-events: none; z-index: 10;">
+              <div class="fw-bold text-primary" style="font-size: 1.5rem;" id="paymentMixTotal">₱0.00</div>
+              <small class="text-muted d-block">Total</small>
             </div>
           </div>
-          <div class="chart-wrapper" style="height:180px; max-height:180px;">
-            <canvas id="paymentMixChart"></canvas>
+          <div id="paymentMixSummary" class="mt-3 pt-3 border-top">
+            <div class="row g-2" id="paymentMethodBreakdown">
+              <!-- Payment method breakdown will be populated by JavaScript -->
+            </div>
           </div>
         </div>
       </div>
@@ -597,6 +733,9 @@
       return gradient;
     };
 
+    // Store chart instances
+    let salesTrendChartInstance = null;
+
     // Initialize all charts
     function initializeAllCharts() {
       // Check if Chart.js is available
@@ -633,7 +772,7 @@
             { position: 1, color: 'rgba(31,122,58,0)' }
           ], wrapperHeight);
 
-          new Chart(salesCtx, {
+          salesTrendChartInstance = new Chart(salesCtx, {
             type: 'line',
             data: {
               labels: safeDailySalesLabels.length > 0 ? safeDailySalesLabels : ['No data'],
@@ -725,6 +864,61 @@
               }
             }
           });
+          
+          // Calculate and display summary statistics
+          if (normDailyTotals.length > 0) {
+            const totalRevenue = normDailyTotals.reduce((a, b) => a + b, 0);
+            const avgDaily = totalRevenue / normDailyTotals.length;
+            
+            // Find peak day
+            let peakIndex = 0;
+            let peakValue = normDailyTotals[0];
+            normDailyTotals.forEach((val, idx) => {
+              if (val > peakValue) {
+                peakValue = val;
+                peakIndex = idx;
+              }
+            });
+            
+            // Calculate week-over-week growth (first 7 days vs last 7 days)
+            const firstWeek = normDailyTotals.slice(0, 7).reduce((a, b) => a + b, 0);
+            const secondWeek = normDailyTotals.slice(7, 14).reduce((a, b) => a + b, 0);
+            let growthPercent = 0;
+            if (firstWeek > 0) {
+              growthPercent = ((secondWeek - firstWeek) / firstWeek) * 100;
+            } else if (secondWeek > 0) {
+              growthPercent = 100;
+            }
+            
+            // Update UI elements
+            const total14DayEl = document.getElementById('total14DayRevenue');
+            const avgDailyEl = document.getElementById('avgDailyRevenue');
+            const peakDayAmountEl = document.getElementById('peakDayAmount');
+            const peakDayLabelEl = document.getElementById('peakDayLabel');
+            const growthPercentEl = document.getElementById('growthPercentage');
+            const growthLabelEl = document.getElementById('growthLabel');
+            const growthCard = document.getElementById('growthCard');
+            
+            if (total14DayEl) {
+              total14DayEl.textContent = '₱' + totalRevenue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }
+            if (avgDailyEl) {
+              avgDailyEl.textContent = '₱' + avgDaily.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }
+            if (peakDayAmountEl && peakDayLabelEl) {
+              peakDayAmountEl.textContent = '₱' + peakValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+              peakDayLabelEl.textContent = safeDailySalesLabels[peakIndex] || '-';
+            }
+            if (growthPercentEl && growthLabelEl && growthCard) {
+              const isPositive = growthPercent >= 0;
+              const color = isPositive ? '#10b981' : '#ef4444';
+              const icon = isPositive ? '↑' : '↓';
+              growthPercentEl.textContent = (isPositive ? '+' : '') + growthPercent.toFixed(1) + '%';
+              growthPercentEl.style.color = color;
+              growthCard.style.borderColor = color;
+              growthLabelEl.innerHTML = `<i class="bi bi-${isPositive ? 'arrow-up' : 'arrow-down'}" style="font-size: 0.7rem;"></i> Week over week`;
+            }
+          }
         } catch (err) {
           console.error('Sales Trend chart error', err);
           const wrapper = salesCanvas.closest('.chart-wrapper');
@@ -744,23 +938,75 @@
           }
 
           if (Array.isArray(normPaymentTotals) && normPaymentTotals.length > 0 && normPaymentTotals.some(v => v > 0)) {
-            new Chart(paymentCtx, {
+            const totalAmount = normPaymentTotals.reduce((a, b) => a + b, 0);
+            const paymentMixTotal = document.getElementById('paymentMixTotal');
+            const paymentMethodBreakdown = document.getElementById('paymentMethodBreakdown');
+            
+            // Update center total
+            if (paymentMixTotal) {
+              paymentMixTotal.textContent = '₱' + totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }
+
+            // Payment method icons mapping
+            const paymentIcons = {
+              'Cash': 'bi-cash-coin',
+              'Debit': 'bi-credit-card-2-front',
+              'Credit': 'bi-credit-card',
+              'Card': 'bi-card-text',
+              'Other': 'bi-wallet2'
+            };
+
+            // Create breakdown cards
+            if (paymentMethodBreakdown) {
+              paymentMethodBreakdown.innerHTML = '';
+              safePaymentLabels.forEach((label, i) => {
+                const value = normPaymentTotals[i];
+                const percentage = ((value / totalAmount) * 100).toFixed(1);
+                const icon = paymentIcons[label] || paymentIcons['Other'];
+                const colors = [
+                  { bg: 'rgba(22, 163, 74, 0.1)', border: 'rgba(22, 163, 74, 0.3)', text: '#16a34a' },   // Green for Debit
+                  { bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.3)', text: '#f97316' },  // Orange for Credit
+                  { bg: 'rgba(14, 165, 233, 0.1)', border: 'rgba(14, 165, 233, 0.3)', text: '#0ea5e9' },  // Blue for Cash
+                  { bg: 'rgba(139, 92, 246, 0.1)', border: 'rgba(139, 92, 246, 0.3)', text: '#8b5cf6' },  // Purple
+                  { bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.3)', text: '#ef4444' }     // Red
+                ];
+                const color = colors[i % colors.length];
+                
+                const card = document.createElement('div');
+                card.className = 'col-6';
+                card.innerHTML = `
+                  <div class="d-flex align-items-center p-2 rounded" style="background: ${color.bg}; border-left: 3px solid ${color.border};">
+                    <div class="me-2">
+                      <i class="bi ${icon}" style="color: ${color.text}; font-size: 1.2rem;"></i>
+                    </div>
+                    <div class="flex-grow-1" style="min-width: 0;">
+                      <div class="fw-semibold text-truncate" style="font-size: 0.75rem; color: ${color.text};">${label}</div>
+                      <div class="fw-bold" style="font-size: 0.85rem; color: #0f172a;">₱${value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                      <small class="text-muted" style="font-size: 0.7rem;">${percentage}%</small>
+                    </div>
+                  </div>
+                `;
+                paymentMethodBreakdown.appendChild(card);
+              });
+            }
+
+            const paymentChart = new Chart(paymentCtx, {
               type: 'doughnut',
               data: {
                 labels: safePaymentLabels,
                 datasets: [{
                   data: normPaymentTotals,
                   backgroundColor: [
-                    'rgba(22, 163, 74, 0.9)',   // Green for Debit
-                    'rgba(249, 115, 22, 0.9)',  // Orange for Credit
-                    'rgba(14, 165, 233, 0.9)',  // Blue for Cash
-                    'rgba(139, 92, 246, 0.9)',  // Purple
-                    'rgba(239, 68, 68, 0.9)'    // Red
+                    'rgba(22, 163, 74, 0.95)',   // Green for Debit
+                    'rgba(249, 115, 22, 0.95)',  // Orange for Credit
+                    'rgba(14, 165, 233, 0.95)',  // Blue for Cash
+                    'rgba(139, 92, 246, 0.95)',  // Purple
+                    'rgba(239, 68, 68, 0.95)'    // Red
                   ],
                   borderColor: '#ffffff',
-                  borderWidth: 3,
-                  hoverOffset: 12,
-                  hoverBorderWidth: 4
+                  borderWidth: 4,
+                  hoverOffset: 15,
+                  hoverBorderWidth: 5
                 }]
               },
               options: {
@@ -768,50 +1014,26 @@
                 maintainAspectRatio: false,
                 plugins: {
                   legend: {
-                    position: 'bottom',
-                    labels: {
-                      padding: 12,
-                      usePointStyle: true,
-                      pointStyle: 'circle',
-                      font: {
-                        size: 12,
-                        weight: '500'
-                      },
-                      color: '#334155',
-                      generateLabels: function(chart) {
-                        const data = chart.data;
-                        if (data.labels.length && data.datasets.length) {
-                          return data.labels.map((label, i) => {
-                            const value = data.datasets[0].data[i];
-                            const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return {
-                              text: `${label}: ₱${value.toLocaleString()} (${percentage}%)`,
-                              fillStyle: data.datasets[0].backgroundColor[i],
-                              hidden: false,
-                              index: i
-                            };
-                          });
-                        }
-                        return [];
-                      }
-                    }
+                    display: false
                   },
                   tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                    padding: 12,
+                    backgroundColor: 'rgba(15, 23, 42, 0.98)',
+                    padding: 16,
                     titleFont: {
-                      size: 14,
+                      size: 15,
                       weight: 'bold'
                     },
                     bodyFont: {
-                      size: 13
+                      size: 14,
+                      weight: '500'
                     },
                     titleColor: '#ffffff',
                     bodyColor: '#ffffff',
                     borderColor: '#ffffff',
                     borderWidth: 2,
-                    cornerRadius: 8,
+                    cornerRadius: 12,
+                    displayColors: true,
+                    boxPadding: 8,
                     callbacks: {
                       label: function(context) {
                         const label = context.label || '';
@@ -823,13 +1045,27 @@
                     }
                   }
                 },
-                cutout: '70%'
+                cutout: '75%',
+                animation: {
+                  animateRotate: true,
+                  animateScale: true,
+                  duration: 1200,
+                  easing: 'easeOutQuart'
+                }
               }
             });
           } else {
             const wrapper = paymentEl.closest('.chart-wrapper');
             if (wrapper) {
               wrapper.innerHTML = '<div class="text-center text-muted p-4"><i class="bi bi-info-circle me-2"></i>No payment data available</div>';
+            }
+            const paymentMixTotal = document.getElementById('paymentMixTotal');
+            if (paymentMixTotal) {
+              paymentMixTotal.textContent = '₱0.00';
+            }
+            const paymentMethodBreakdown = document.getElementById('paymentMethodBreakdown');
+            if (paymentMethodBreakdown) {
+              paymentMethodBreakdown.innerHTML = '<div class="col-12 text-center text-muted py-3"><small>No payment data to display</small></div>';
             }
           }
         } catch (err) {
@@ -1141,6 +1377,93 @@
             initializeAllCharts(); // Will show error messages
           }
         }, 100);
+      }
+
+      // Sales Trend Chart Expand/Collapse Functionality
+      const salesTrendCard = document.getElementById('salesTrendCard');
+      const expandSalesChartBtn = document.getElementById('expandSalesChartBtn');
+      const expandSalesChartIcon = document.getElementById('expandSalesChartIcon');
+      const salesTrendWrapper = document.getElementById('salesTrendWrapper');
+      let isSalesChartExpanded = false;
+
+      if (expandSalesChartBtn && salesTrendCard) {
+        expandSalesChartBtn.addEventListener('click', () => {
+          isSalesChartExpanded = !isSalesChartExpanded;
+          
+          if (isSalesChartExpanded) {
+            // Expand
+            salesTrendCard.classList.add('expanded');
+            expandSalesChartIcon.className = 'bi bi-fullscreen-exit';
+            expandSalesChartBtn.title = 'Collapse chart';
+            
+            // Update gradient for expanded view
+            if (salesTrendChartInstance) {
+              const wrapper = salesTrendChartInstance.canvas.closest('.chart-wrapper');
+              const wrapperHeight = wrapper ? wrapper.clientHeight : window.innerHeight - 150;
+              const salesCtx = salesTrendChartInstance.canvas.getContext('2d');
+              const salesGradient = createGradient(salesCtx, [
+                { position: 0, color: 'rgba(31,122,58,0.4)' },
+                { position: 0.5, color: 'rgba(31,122,58,0.15)' },
+                { position: 1, color: 'rgba(31,122,58,0)' }
+              ], wrapperHeight);
+              
+              // Update the dataset background color
+              salesTrendChartInstance.data.datasets[0].backgroundColor = salesGradient;
+              salesTrendChartInstance.update('none');
+            }
+            
+            // Resize chart after a short delay to ensure container is resized
+            setTimeout(() => {
+              if (salesTrendChartInstance) {
+                salesTrendChartInstance.resize();
+              }
+            }, 100);
+          } else {
+            // Collapse
+            salesTrendCard.classList.remove('expanded');
+            expandSalesChartIcon.className = 'bi bi-arrows-fullscreen';
+            expandSalesChartBtn.title = 'Expand chart';
+            
+            // Update gradient for collapsed view
+            if (salesTrendChartInstance) {
+              const wrapper = salesTrendChartInstance.canvas.closest('.chart-wrapper');
+              const wrapperHeight = 280;
+              const salesCtx = salesTrendChartInstance.canvas.getContext('2d');
+              const salesGradient = createGradient(salesCtx, [
+                { position: 0, color: 'rgba(31,122,58,0.4)' },
+                { position: 0.5, color: 'rgba(31,122,58,0.15)' },
+                { position: 1, color: 'rgba(31,122,58,0)' }
+              ], wrapperHeight);
+              
+              // Update the dataset background color
+              salesTrendChartInstance.data.datasets[0].backgroundColor = salesGradient;
+              salesTrendChartInstance.update('none');
+            }
+            
+            // Resize chart after a short delay
+            setTimeout(() => {
+              if (salesTrendChartInstance) {
+                salesTrendChartInstance.resize();
+              }
+            }, 100);
+          }
+        });
+
+        // Close expanded chart on Escape key
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && isSalesChartExpanded) {
+            expandSalesChartBtn.click();
+          }
+        });
+
+        // Handle window resize for expanded chart
+        window.addEventListener('resize', () => {
+          if (isSalesChartExpanded && salesTrendChartInstance) {
+            setTimeout(() => {
+              salesTrendChartInstance.resize();
+            }, 100);
+          }
+        });
       }
     });
 

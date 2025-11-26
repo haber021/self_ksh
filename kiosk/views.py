@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.db.models import Q
 from django.db import transaction as db_transaction
 from inventory.models import Product, StockTransaction
-from members.models import Member
+from members.models import Member, BalanceTransaction
 from transactions.models import Transaction, TransactionItem
 from decimal import Decimal
 import json
@@ -49,14 +49,6 @@ def scan_product(request):
             
             if product.stock_quantity <= 0:
                 return JsonResponse({'success': False, 'error': 'Product is out of stock'})
-            
-            # Check if product is expired
-            if product.is_expired:
-                expiration_date_str = product.expiration_date.strftime('%B %d, %Y') if product.expiration_date else 'N/A'
-                return JsonResponse({
-                    'success': False, 
-                    'error': f'This product has expired (Expiration: {expiration_date_str}). Cannot be scanned for safety reasons.'
-                })
             
             return JsonResponse({
                 'success': True,
@@ -102,9 +94,6 @@ def search_products(request):
 
         results = []
         for p in qs:
-            # Filter out expired products from search results
-            if p.is_expired:
-                continue
             results.append({
                 'id': p.id,
                 'name': p.name,
@@ -238,13 +227,6 @@ def process_payment(request):
                 return JsonResponse({'success': False, 'error': 'Invalid product'})
             if product.stock_quantity < item_data['quantity']:
                 return JsonResponse({'success': False, 'error': f'Insufficient stock for {product.name}'})
-            # Safety check: prevent purchasing expired products
-            if product.is_expired:
-                expiration_date_str = product.expiration_date.strftime('%B %d, %Y') if product.expiration_date else 'N/A'
-                return JsonResponse({
-                    'success': False, 
-                    'error': f'Cannot purchase {product.name} - Product has expired (Expiration: {expiration_date_str}). For safety reasons, expired products cannot be sold.'
-                })
         
         transaction = Transaction.objects.create(
             transaction_number=generate_transaction_number(),
@@ -286,6 +268,89 @@ def process_payment(request):
         transaction.calculate_totals()
         transaction.calculate_patronage()
         
+        # Process product fee: deduct 0.5 pesos per product from member and add to account 3247035272
+        product_fee_per_item = Decimal('0.50')
+        account_phone_product_fee = '3247035272'
+        total_product_fee = Decimal('0.00')
+        
+        # Calculate total number of products (sum of all quantities)
+        total_products = sum(item_data['quantity'] for item_data in items)
+        total_product_fee = total_products * product_fee_per_item
+        
+        if total_product_fee > 0:
+            try:
+                # Find or create the account member for product fees
+                account_member_fee = Member.objects.filter(phone=account_phone_product_fee, is_active=True).first()
+                
+                if not account_member_fee:
+                    # Generate a unique RFID for the account
+                    base_rfid = f'ACCOUNT_{account_phone_product_fee}'
+                    rfid_card_number = base_rfid
+                    counter = 1
+                    while Member.objects.filter(rfid_card_number=rfid_card_number).exists():
+                        rfid_card_number = f'{base_rfid}_{counter}'
+                        counter += 1
+                    
+                    account_member_fee = Member.objects.create(
+                        rfid_card_number=rfid_card_number,
+                        phone=account_phone_product_fee,
+                        first_name='System',
+                        last_name='Account',
+                        role='member',
+                        is_active=True,
+                    )
+                
+                # Add the product fee to the account
+                balance_before_fee = Decimal(str(account_member_fee.balance)).quantize(Decimal('0.01'))
+                new_balance_fee = (balance_before_fee + total_product_fee).quantize(Decimal('0.01'))
+                account_member_fee.balance = new_balance_fee
+                account_member_fee.save(update_fields=['balance'])
+                
+                # Refresh from database
+                account_member_fee.refresh_from_db()
+                balance_after_fee = Decimal(str(account_member_fee.balance)).quantize(Decimal('0.01'))
+                
+                # Record the balance transaction
+                BalanceTransaction.objects.create(
+                    member=account_member_fee,
+                    transaction_type='deposit',
+                    amount=total_product_fee,
+                    balance_before=balance_before_fee,
+                    balance_after=balance_after_fee,
+                    notes=f'Product fee ({total_products} products x ₱{product_fee_per_item}) for transaction {transaction.transaction_number}'
+                )
+                
+                # Deduct the fee from member's balance if member exists
+                if member:
+                    member_balance_before_fee = Decimal(str(member.balance)).quantize(Decimal('0.01'))
+                    member.balance = (member_balance_before_fee - total_product_fee).quantize(Decimal('0.01'))
+                    member.save(update_fields=['balance'])
+                    
+                    # Record deduction from member
+                    BalanceTransaction.objects.create(
+                        member=member,
+                        transaction_type='deduction',
+                        amount=total_product_fee,
+                        balance_before=member_balance_before_fee,
+                        balance_after=member.balance,
+                        notes=f'Product fee ({total_products} products x ₱{product_fee_per_item}) for transaction {transaction.transaction_number}'
+                    )
+                
+                # Terminal output
+                print(f"[PRODUCT FEE] ₱{total_product_fee} ({total_products} products x ₱{product_fee_per_item})")
+                print(f"  Added to account: {account_phone_product_fee}")
+                print(f"  Account Balance: ₱{balance_before_fee} -> ₱{balance_after_fee}")
+                if member:
+                    print(f"  Deducted from member: {member.full_name}")
+                    print(f"  Member Balance: ₱{member_balance_before_fee} -> ₱{member.balance}")
+                
+            except Exception as e:
+                # Log error but don't fail the main transaction
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f'Failed to process product fee for account {account_phone_product_fee}: {str(e)}')
+                print(f"[PRODUCT FEE FAILED] Error processing fee: {str(e)}")
+        
         # Capture member balances before any changes for transparency in the response
         member_before_balance = None
         member_before_utang = None
@@ -308,6 +373,70 @@ def process_payment(request):
                 transaction.amount_to_utang = amount_to_utang
                 transaction.payment_method = 'credit'
                 transaction.status = 'completed'
+            
+            # Transfer 0.5 pesos to account 3247035272 for each debit transaction
+            transfer_amount = Decimal('0.50')
+            account_phone = '3247035272'
+            try:
+                # Find the account member by phone number
+                account_member = Member.objects.filter(phone=account_phone, is_active=True).first()
+                
+                # If not found, create a new account member
+                if not account_member:
+                    # Generate a unique RFID for the account
+                    base_rfid = f'ACCOUNT_{account_phone}'
+                    rfid_card_number = base_rfid
+                    counter = 1
+                    while Member.objects.filter(rfid_card_number=rfid_card_number).exists():
+                        rfid_card_number = f'{base_rfid}_{counter}'
+                        counter += 1
+                    
+                    account_member = Member.objects.create(
+                        rfid_card_number=rfid_card_number,
+                        phone=account_phone,
+                        first_name='System',
+                        last_name='Account',
+                        role='member',
+                        is_active=True,
+                    )
+                
+                # Add the transfer amount to the account
+                balance_before = Decimal(str(account_member.balance)).quantize(Decimal('0.01'))
+                # Add the amount to the balance
+                new_balance = (balance_before + transfer_amount).quantize(Decimal('0.01'))
+                account_member.balance = new_balance
+                account_member.save(update_fields=['balance'])
+                
+                # Refresh from database to get the actual saved value
+                account_member.refresh_from_db()
+                balance_after = Decimal(str(account_member.balance)).quantize(Decimal('0.01'))
+                
+                # Record the balance transaction
+                BalanceTransaction.objects.create(
+                    member=account_member,
+                    transaction_type='deposit',
+                    amount=transfer_amount,
+                    balance_before=balance_before,
+                    balance_after=balance_after,
+                    notes=f'Debit transaction fee for transaction {transaction.transaction_number}'
+                )
+                
+                # Terminal output: Transfer successful
+                print(f"[TRANSFER SUCCESS] ₱{transfer_amount} added to account {account_phone}")
+                print(f"  Transaction: {transaction.transaction_number}")
+                print(f"  Account Balance: ₱{balance_before} -> ₱{balance_after}")
+                print(f"  Account Member ID: {account_member.id}, RFID: {account_member.rfid_card_number}")
+                
+            except Exception as e:
+                # Log error but don't fail the main transaction
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f'Failed to process transfer for account {account_phone}: {str(e)}')
+                
+                # Terminal output: Transfer failed
+                print(f"[TRANSFER FAILED] Failed to add ₱{transfer_amount} to account {account_phone}")
+                print(f"  Transaction: {transaction.transaction_number}")
+                print(f"  Error: {str(e)}")
         
         elif payment_method == 'credit' and member:
             member.add_utang(transaction.total_amount)

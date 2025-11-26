@@ -1,6 +1,4 @@
 from django.db import models
-from django.utils import timezone
-from datetime import timedelta
 from PIL import Image
 
 
@@ -31,8 +29,6 @@ class Product(models.Model):
     stock_quantity = models.IntegerField(default=0)
     low_stock_threshold = models.IntegerField(default=10)
     
-    expiration_date = models.DateField(null=True, blank=True, help_text="Product expiration date for safety tracking")
-    
     image = models.ImageField(upload_to='products/', null=True, blank=True)
     
     is_active = models.BooleanField(default=True)
@@ -58,38 +54,6 @@ class Product(models.Model):
         elif self.stock_quantity < self.low_stock_threshold:
             return self.low_stock_threshold - self.stock_quantity
         return 0
-
-    @property
-    def is_expired(self):
-        """Check if product has expired"""
-        if not self.expiration_date:
-            return False
-        return self.expiration_date < timezone.now().date()
-
-    @property
-    def is_expiring_soon(self):
-        """Check if product is expiring within 7 days"""
-        if not self.expiration_date:
-            return False
-        if self.is_expired:
-            return False
-        days_until_expiry = (self.expiration_date - timezone.now().date()).days
-        return 0 <= days_until_expiry <= 7
-
-    @property
-    def days_until_expiry(self):
-        """Calculate days until expiration (negative if expired)"""
-        if not self.expiration_date:
-            return None
-        return (self.expiration_date - timezone.now().date()).days
-
-    @property
-    def days_past_expiry(self):
-        """Calculate days past expiration (returns 0 if not expired)"""
-        if not self.expiration_date:
-            return None
-        days = (timezone.now().date() - self.expiration_date).days
-        return max(0, days)
 
     def add_stock(self, quantity):
         self.stock_quantity += quantity

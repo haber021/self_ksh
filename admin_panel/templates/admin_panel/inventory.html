@@ -94,21 +94,6 @@
       background: #d1fae5;
       color: #065f46;
     }
-
-    .expired {
-      background: #fee2e2;
-      color: #991b1b;
-    }
-
-    .expiring-soon {
-      background: #fef3c7;
-      color: #92400e;
-    }
-
-    .expiration-ok {
-      background: #d1fae5;
-      color: #065f46;
-    }
   </style>
 </head>
 <body>
@@ -231,7 +216,6 @@
                   <th>Category</th>
                   <th>Price</th>
                   <th>Stock</th>
-                  <th>Expiration Date</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -270,35 +254,6 @@
                     {% endif %}
                   </td>
                   <td>
-                    {% if product.expiration_date %}
-                      <div class="fw-semibold">{{ product.expiration_date|date:"M d, Y" }}</div>
-                      {% if product.is_expired %}
-                        <small class="badge-stock expired d-block mt-1">
-                          <i class="bi bi-exclamation-triangle-fill me-1"></i>Expired
-                        </small>
-                        <small class="text-danger d-block mt-1">
-                          {{ product.days_past_expiry }} day{{ product.days_past_expiry|pluralize }} past expiry
-                        </small>
-                      {% elif product.is_expiring_soon %}
-                        <small class="badge-stock expiring-soon d-block mt-1">
-                          <i class="bi bi-clock me-1"></i>Expiring Soon
-                        </small>
-                        <small class="text-warning d-block mt-1">
-                          {{ product.days_until_expiry }} day{{ product.days_until_expiry|pluralize }} remaining
-                        </small>
-                      {% else %}
-                        <small class="badge-stock expiration-ok d-block mt-1">
-                          <i class="bi bi-check-circle me-1"></i>Valid
-                        </small>
-                        <small class="text-muted d-block mt-1">
-                          {{ product.days_until_expiry }} day{{ product.days_until_expiry|pluralize }} remaining
-                        </small>
-                      {% endif %}
-                    {% else %}
-                      <span class="text-muted">Not set</span>
-                    {% endif %}
-                  </td>
-                  <td>
                     {% if product.stock_quantity <= 0 %}
                     <span class="badge-stock stock-out">
                       <i class="bi bi-x-circle me-1"></i>Out of Stock
@@ -324,7 +279,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                  <td colspan="8" class="text-center text-muted py-4">
+                  <td colspan="7" class="text-center text-muted py-4">
                     <i class="bi bi-inbox me-2"></i>No products found. 
                     <a href="/admin/inventory/product/add/">Add your first product</a>
                   </td>

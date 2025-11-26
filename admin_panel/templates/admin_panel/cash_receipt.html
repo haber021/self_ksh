@@ -119,6 +119,19 @@
             max-width: 100%;
             height: auto;
         }
+        .rp-section {
+            margin: 2mm 0;
+        }
+        .rp-line {
+            display: flex;
+            justify-content: space-between;
+            margin: 1mm 0;
+            font-size: 11pt;
+        }
+        .rp-line-label {
+            font-weight: bold;
+            margin-right: 5px;
+        }
         .print-controls {
             text-align: center;
             padding: 15px;
@@ -186,6 +199,17 @@
     <div class="rp-receipt-type">CASH RECEIPT</div>
 
     <div class="rp-separator">******************************</div>
+
+    <!-- Member Info -->
+    {% if transaction.member %}
+    <div class="rp-section">
+        <div class="rp-line">
+            <span class="rp-line-label">Member:</span>
+            <span>{{ transaction.member.full_name }}</span>
+        </div>
+    </div>
+    <div class="rp-separator">******************************</div>
+    {% endif %}
 
     <!-- Items Header -->
     <div class="rp-items-header">
