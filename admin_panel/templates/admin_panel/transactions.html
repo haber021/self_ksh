@@ -412,6 +412,19 @@
                       </div>
                       {% endif %}
                       <div class="mt-2 pt-2 border-top">
+                        {% if transaction.payment_method == 'cash' and transaction.status == 'completed' %}
+                        <a href="{% url 'view_cash_receipt' transaction.id %}" class="btn btn-sm btn-outline-success rounded-pill me-2" target="_blank">
+                          <i class="bi bi-receipt me-1"></i>View Cash Receipt
+                        </a>
+                        {% elif transaction.payment_method == 'debit' and transaction.status == 'completed' %}
+                        <a href="{% url 'view_debit_credit_receipt' transaction.id %}" class="btn btn-sm btn-outline-success rounded-pill me-2" target="_blank">
+                          <i class="bi bi-receipt me-1"></i>View Debit Receipt
+                        </a>
+                        {% elif transaction.payment_method == 'credit' and transaction.status == 'completed' %}
+                        <a href="{% url 'view_debit_credit_receipt' transaction.id %}" class="btn btn-sm btn-outline-success rounded-pill me-2" target="_blank">
+                          <i class="bi bi-receipt me-1"></i>View Credit Receipt
+                        </a>
+                        {% endif %}
                         <a href="/admin/transactions/transaction/{{ transaction.id }}/change/" class="btn btn-sm btn-outline-primary rounded-pill">
                           <i class="bi bi-pencil me-1"></i>Edit in Admin
                         </a>

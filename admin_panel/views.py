@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.utils.http import urlencode
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
+from django.template.loader import render_to_string
 
 from inventory.models import Product, Category
 from members.models import Member, MemberType, BalanceTransaction
@@ -667,7 +668,7 @@ def api_update_patronage_rate(request):
         return JsonResponse({'success': False, 'error': f'Server error: {str(e)}'})
 
 
-def generate_refund_receipt_data(transaction, refund_reason, member, balance_before=None, balance_after=None, utang_before=None, utang_after=None):
+def generate_refund_receipt_data(transaction, refund_reason, member, balance_before=None, balance_after=None, utang_before=None, utang_after=None, request=None):
     """Generate refund receipt text data"""
     from django.conf import settings
     
@@ -688,7 +689,7 @@ def generate_refund_receipt_data(transaction, refund_reason, member, balance_bef
     lines.append('Original Txn:')
     lines.append(transaction.transaction_number)
     lines.append('Refund Date:')
-    lines.append(timezone.now().strftime('%Y-%m-%d %H:%M:%S'))
+    lines.append(timezone.localtime(timezone.now()).strftime('%Y-%m-%d %H:%M:%S'))
     lines.append('')
     
     # Member info
@@ -744,102 +745,52 @@ def generate_refund_receipt_data(transaction, refund_reason, member, balance_bef
     
     return {
         'text': '\r\n'.join(lines),
-        'html': generate_refund_receipt_html(transaction, refund_reason, member, balance_before, balance_after, utang_before, utang_after)
+        'html': generate_refund_receipt_html(transaction, refund_reason, member, balance_before, balance_after, utang_before, utang_after, request=request)
     }
 
 
-def generate_refund_receipt_html(transaction, refund_reason, member, balance_before=None, balance_after=None, utang_before=None, utang_after=None):
-    """Generate HTML version of refund receipt"""
+def generate_refund_receipt_html(transaction, refund_reason, member, balance_before=None, balance_after=None, utang_before=None, utang_after=None, request=None):
+    """Generate HTML version of refund receipt using template"""
     from django.conf import settings
     
     vat_rate = getattr(settings, 'VAT_RATE', 0.12)
+    vat_rate_percent = int(vat_rate * 100)
     
-    def money(v):
-        if v is None:
-            return '₱0.00'
-        return '₱' + str(Decimal(str(v)).quantize(Decimal('0.01')))
+    # Get shop information
+    shop_name = getattr(settings, 'SHOP_NAME', 'COOPERATIVE STORE')
+    shop_address = getattr(settings, 'SHOP_ADDRESS', 'Address: Lorem Ipsum, 23-10')
+    shop_phone = getattr(settings, 'SHOP_PHONE', 'Telp. 11223344')
     
-    items_html = ''.join([
-        f'<div class="rp-line"><span>{item.product_name} x{item.quantity}</span><span>{money(item.total_price)}</span></div>'
-        for item in transaction.items.all()
-    ])
+    # Determine refund method display
+    show_balance_refund = (transaction.payment_method == 'debit' and member and balance_before is not None)
+    show_utang_refund = (transaction.payment_method == 'credit' and member and utang_before is not None)
+    show_cash_refund = (transaction.payment_method == 'cash')
     
-    member_info = ''
-    if member:
-        member_info = f'<div class="rp-line"><span>Member:</span><span>{member.full_name}</span></div>'
-        if hasattr(member, 'member_id') and member.member_id:
-            member_info += f'<div class="rp-line"><span>Member ID:</span><span>{member.member_id}</span></div>'
+    context = {
+        'transaction': transaction,
+        'member': member,
+        'refund_reason': refund_reason,
+        'refund_date': timezone.localtime(timezone.now()),
+        'vat_rate_percent': vat_rate_percent,
+        'balance_before': balance_before,
+        'balance_after': balance_after,
+        'utang_before': utang_before,
+        'utang_after': utang_after,
+        'show_balance_refund': show_balance_refund,
+        'show_utang_refund': show_utang_refund,
+        'show_cash_refund': show_cash_refund,
+        'shop_name': shop_name,
+        'shop_address': shop_address,
+        'shop_phone': shop_phone,
+    }
     
-    refund_method_html = ''
-    if transaction.payment_method == 'debit' and member and balance_before is not None:
-        refund_method_html = f'''
-            <div class="rp-section-title">REFUND METHOD</div>
-            <div class="rp-line"><span>Refunded to Balance</span></div>
-            <div class="rp-line"><span>Balance Before:</span><span>{money(balance_before)}</span></div>
-            <div class="rp-line"><span>Balance After:</span><span>{money(balance_after)}</span></div>
-        '''
-    elif transaction.payment_method == 'credit' and member and utang_before is not None:
-        refund_method_html = f'''
-            <div class="rp-section-title">REFUND METHOD</div>
-            <div class="rp-line"><span>Reduced from Utang</span></div>
-            <div class="rp-line"><span>Utang Before:</span><span>{money(utang_before)}</span></div>
-            <div class="rp-line"><span>Utang After:</span><span>{money(utang_after)}</span></div>
-        '''
-    elif transaction.payment_method == 'cash':
-        refund_method_html = '''
-            <div class="rp-section-title">REFUND METHOD</div>
-            <div class="rp-line"><span>Cash Refund</span></div>
-        '''
+    # Render the template - use request if provided for proper context
+    if request:
+        html = render_to_string('admin_panel/refund_receipt.html', context, request=request)
+    else:
+        html = render_to_string('admin_panel/refund_receipt.html', context)
     
-    reason_html = ''
-    if refund_reason:
-        reason_html = f'''
-            <div class="rp-sep"></div>
-            <div class="rp-line"><span>Reason:</span></div>
-            <div class="rp-subline">{refund_reason}</div>
-        '''
-    
-    html = f'''
-        <div id="receiptPaper" class="receipt-paper">
-            <div class="rp-center">
-                <div class="rp-title">COOPERATIVE STORE</div>
-                <div class="rp-sub">REFUND RECEIPT</div>
-            </div>
-            <div class="rp-line"><span>Original Txn:</span><span>{transaction.transaction_number}</span></div>
-            <div class="rp-line"><span>Refund Date:</span><span>{timezone.now().strftime('%Y-%m-%d %H:%M:%S')}</span></div>
-            {member_info}
-            <div class="rp-section-title">ITEMS REFUNDED</div>
-            {items_html}
-            <div class="rp-sep"></div>
-            <div class="rp-line"><span>Vatable Sale</span><span>{money(transaction.vatable_sale)}</span></div>
-            <div class="rp-line"><span>VAT ({vat_rate*100:.0f}%)</span><span>{money(transaction.vat_amount)}</span></div>
-            <div class="rp-line"><span>Subtotal:</span><span>{money(transaction.subtotal)}</span></div>
-            <div class="rp-line rp-total"><span>Total Refund:</span><span>{money(transaction.total_amount)}</span></div>
-            {refund_method_html}
-            {reason_html}
-            <div class="rp-center rp-thanks">Thank you!</div>
-        </div>
-    '''
-    
-    css = '''
-        <style>
-            @page { size: 58mm auto; margin: 2mm; }
-            html, body { width: 58mm; padding: 0; margin: 0; }
-            .receipt-paper { font-family: "Courier New", monospace; font-size: 12pt; line-height: 1.45; width: 56mm; max-width: 56mm; margin: 0 auto; color: #000 !important; }
-            .receipt-paper * { color: #000 !important; }
-            .receipt-paper .rp-center { text-align: center; }
-            .receipt-paper .rp-title { font-weight: 700; font-size: 13pt; margin: 2mm 0 1mm; }
-            .receipt-paper .rp-sub { font-size: 11pt; margin-bottom: 2mm; }
-            .receipt-paper .rp-line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-            .receipt-paper .rp-sep { border-top: 1px dashed #000; margin: 2mm 0; }
-            .receipt-paper .rp-section-title { margin: 1mm 0; font-weight: 700; }
-            .receipt-paper .rp-subline { font-size: 10pt; color: #000; }
-            .receipt-paper .rp-total { font-weight: 700; font-size: 12pt; color: #c00 !important; }
-            .receipt-paper .rp-thanks { margin-top: 2mm; }
-        </style>
-    '''
-    
-    return f'<!doctype html><html><head><meta charset="utf-8"><title>Refund Receipt</title>{css}</head><body>{html}</body></html>'
+    return html
 
 
 @login_required
@@ -853,6 +804,243 @@ def process_refund(request):
     # All logged-in users can access the refund page
     # Access control is enforced at the API level
     return render(request, 'admin_panel/refund.html')
+
+
+@login_required
+@require_http_methods(["GET"])
+def view_refund_receipt(request, transaction_id):
+    """View refund receipt for a cancelled transaction
+    
+    Access control:
+    - Regular members: can only view receipts for their own transactions
+    - Cashiers and admins: can view any transaction receipt
+    """
+    try:
+        # Get the transaction - must be cancelled (refunded)
+        transaction = Transaction.objects.select_related('member').prefetch_related('items').get(
+            id=transaction_id, 
+            status='cancelled'
+        )
+        
+        # Check access control
+        has_full_access = is_cashier_or_admin(request.user)
+        if not has_full_access:
+            # Get member associated with the logged-in user
+            try:
+                user_member = Member.objects.get(user=request.user, is_active=True)
+            except Member.DoesNotExist:
+                messages.error(request, 'You do not have permission to view this receipt')
+                return redirect('process_refund')
+            except Member.MultipleObjectsReturned:
+                user_member = Member.objects.filter(user=request.user, is_active=True).first()
+                if not user_member:
+                    messages.error(request, 'You do not have permission to view this receipt')
+                    return redirect('process_refund')
+            
+            # Check if the transaction belongs to the user
+            if transaction.member != user_member:
+                messages.error(request, 'You can only view receipts for your own transactions')
+                return redirect('process_refund')
+        
+        member = transaction.member
+        
+        # Extract refund reason from transaction notes
+        refund_reason = ''
+        if transaction.notes and 'Refunded' in transaction.notes:
+            # Extract reason if it exists (format: "Refunded. reason text")
+            parts = transaction.notes.split('.', 1)
+            if len(parts) > 1:
+                refund_reason = parts[1].strip()
+        
+        # Try to get balance information from BalanceTransaction
+        balance_before = None
+        balance_after = None
+        utang_before = None
+        utang_after = None
+        
+        # Look for the most recent balance transaction related to this refund
+        balance_txn = BalanceTransaction.objects.filter(
+            notes__icontains=f'transaction {transaction.transaction_number}'
+        ).filter(
+            notes__icontains='Refund'
+        ).order_by('-created_at').first()
+        
+        if balance_txn:
+            balance_before = balance_txn.balance_before
+            balance_after = balance_txn.balance_after
+            utang_before = balance_txn.utang_before
+            utang_after = balance_txn.utang_after
+        
+        # Prepare context for template
+        from django.conf import settings
+        vat_rate = getattr(settings, 'VAT_RATE', 0.12)
+        vat_rate_percent = int(vat_rate * 100)
+        
+        # Get shop information
+        shop_name = getattr(settings, 'SHOP_NAME', 'COOPERATIVE STORE')
+        shop_address = getattr(settings, 'SHOP_ADDRESS', 'Address: Lorem Ipsum, 23-10')
+        shop_phone = getattr(settings, 'SHOP_PHONE', 'Telp. 11223344')
+        
+        show_balance_refund = (transaction.payment_method == 'debit' and member and balance_before is not None)
+        show_utang_refund = (transaction.payment_method == 'credit' and member and utang_before is not None)
+        show_cash_refund = (transaction.payment_method == 'cash')
+        
+        context = {
+            'transaction': transaction,
+            'member': member,
+            'refund_reason': refund_reason,
+            'refund_date': timezone.localtime(transaction.updated_at) if transaction.updated_at else timezone.localtime(timezone.now()),  # Use when transaction was cancelled, converted to local timezone
+            'vat_rate_percent': vat_rate_percent,
+            'balance_before': balance_before,
+            'balance_after': balance_after,
+            'utang_before': utang_before,
+            'utang_after': utang_after,
+            'show_balance_refund': show_balance_refund,
+            'show_utang_refund': show_utang_refund,
+            'show_cash_refund': show_cash_refund,
+            'shop_name': shop_name,
+            'shop_address': shop_address,
+            'shop_phone': shop_phone,
+        }
+        
+        return render(request, 'admin_panel/refund_receipt.html', context)
+        
+    except Transaction.DoesNotExist:
+        messages.error(request, 'Refund receipt not found')
+        return redirect('process_refund')
+    except Exception as e:
+        messages.error(request, f'Error loading receipt: {str(e)}')
+        return redirect('process_refund')
+
+
+@login_required
+@require_http_methods(["GET"])
+def view_cash_receipt(request, transaction_id):
+    """View cash receipt for a completed cash transaction
+    
+    Access control:
+    - Regular members: can only view receipts for their own transactions
+    - Cashiers and admins: can view any transaction receipt
+    """
+    try:
+        # Get the transaction - must be completed and cash payment
+        transaction = Transaction.objects.select_related('member').prefetch_related('items').get(
+            id=transaction_id, 
+            status='completed',
+            payment_method='cash'
+        )
+        
+        # Check access control
+        has_full_access = is_cashier_or_admin(request.user)
+        if not has_full_access:
+            # Get member associated with the logged-in user
+            try:
+                user_member = Member.objects.get(user=request.user, is_active=True)
+            except Member.DoesNotExist:
+                messages.error(request, 'You do not have permission to view this receipt')
+                return redirect('transaction_history')
+            except Member.MultipleObjectsReturned:
+                user_member = Member.objects.filter(user=request.user, is_active=True).first()
+                if not user_member:
+                    messages.error(request, 'You do not have permission to view this receipt')
+                    return redirect('transaction_history')
+            
+            # Check if the transaction belongs to the user
+            if transaction.member != user_member:
+                messages.error(request, 'You can only view receipts for your own transactions')
+                return redirect('transaction_history')
+        
+        # Calculate change amount
+        change_amount = Decimal('0.00')
+        if transaction.amount_paid > transaction.total_amount:
+            change_amount = transaction.amount_paid - transaction.total_amount
+        
+        # Get shop information from settings (with defaults)
+        shop_name = getattr(settings, 'SHOP_NAME', 'COOPERATIVE STORE')
+        shop_address = getattr(settings, 'SHOP_ADDRESS', 'Address: Lorem Ipsum, 23-10')
+        shop_phone = getattr(settings, 'SHOP_PHONE', 'Telp. 11223344')
+        
+        context = {
+            'transaction': transaction,
+            'change_amount': change_amount,
+            'shop_name': shop_name,
+            'shop_address': shop_address,
+            'shop_phone': shop_phone,
+        }
+        
+        return render(request, 'admin_panel/cash_receipt.html', context)
+        
+    except Transaction.DoesNotExist:
+        messages.error(request, 'Cash receipt not found')
+        return redirect('transaction_history')
+    except Exception as e:
+        messages.error(request, f'Error loading receipt: {str(e)}')
+        return redirect('transaction_history')
+
+
+@login_required
+@require_http_methods(["GET"])
+def view_debit_credit_receipt(request, transaction_id):
+    """View debit/credit receipt for a completed debit or credit transaction
+    
+    Access control:
+    - Regular members: can only view receipts for their own transactions
+    - Cashiers and admins: can view any transaction receipt
+    """
+    try:
+        # Get the transaction - must be completed and debit or credit payment
+        transaction = Transaction.objects.select_related('member').prefetch_related('items').get(
+            id=transaction_id, 
+            status='completed',
+            payment_method__in=['debit', 'credit']
+        )
+        
+        # Check access control
+        has_full_access = is_cashier_or_admin(request.user)
+        if not has_full_access:
+            # Get member associated with the logged-in user
+            try:
+                user_member = Member.objects.get(user=request.user, is_active=True)
+            except Member.DoesNotExist:
+                messages.error(request, 'You do not have permission to view this receipt')
+                return redirect('transaction_history')
+            except Member.MultipleObjectsReturned:
+                user_member = Member.objects.filter(user=request.user, is_active=True).first()
+                if not user_member:
+                    messages.error(request, 'You do not have permission to view this receipt')
+                    return redirect('transaction_history')
+            
+            # Check if the transaction belongs to the user
+            if transaction.member != user_member:
+                messages.error(request, 'You can only view receipts for your own transactions')
+                return redirect('transaction_history')
+        
+        # Get shop information from settings (with defaults)
+        shop_name = getattr(settings, 'SHOP_NAME', 'BUSINESS NAME')
+        shop_address = getattr(settings, 'SHOP_ADDRESS', '1234 Main Street, Suite 567, City Name, State 54321')
+        shop_phone = getattr(settings, 'SHOP_PHONE', '123-456-7890')
+        merchant_id = getattr(settings, 'MERCHANT_ID', None)
+        terminal_id = getattr(settings, 'TERMINAL_ID', None)
+        approval_code = getattr(settings, 'APPROVAL_CODE', None)
+        
+        context = {
+            'transaction': transaction,
+            'shop_name': shop_name,
+            'shop_address': shop_address,
+            'shop_phone': shop_phone,
+            'merchant_id': merchant_id,
+            'terminal_id': terminal_id,
+            'approval_code': approval_code,
+        }
+        
+        return render(request, 'admin_panel/debit_credit_receipt.html', context)
+        
+    except Transaction.DoesNotExist:
+        messages.error(request, 'Receipt not found')
+        return redirect('transaction_history')
+    except Exception as e:
+        messages.error(request, f'Error loading receipt: {str(e)}')
+        return redirect('transaction_history')
 
 
 @login_required
@@ -945,7 +1133,8 @@ def api_process_refund(request):
             return JsonResponse({'success': False, 'error': 'Transaction ID is required'})
         
         try:
-            transaction = Transaction.objects.get(id=transaction_id, status='completed')
+            # Prefetch related items for receipt generation
+            transaction = Transaction.objects.select_related('member').prefetch_related('items').get(id=transaction_id, status='completed')
         except Transaction.DoesNotExist:
             return JsonResponse({'success': False, 'error': 'Transaction not found or not eligible for refund'})
         
@@ -1030,8 +1219,8 @@ def api_process_refund(request):
         if member:
             member.refresh_from_db()
         
-        # Generate refund receipt data
-        receipt_data = generate_refund_receipt_data(transaction, refund_reason, member, balance_before, balance_after, utang_before, utang_after)
+        # Generate refund receipt data - pass request for proper template rendering
+        receipt_data = generate_refund_receipt_data(transaction, refund_reason, member, balance_before, balance_after, utang_before, utang_after, request=request)
         
         return JsonResponse({
             'success': True,

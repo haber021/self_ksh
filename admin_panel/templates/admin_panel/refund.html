@@ -228,6 +228,38 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(16,185,129,0.3);
         }
+        /* Receipt Modal Styles */
+        .receipt-modal .modal-dialog {
+            max-width: 90%;
+            width: 600px;
+        }
+        .receipt-modal .modal-content {
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .receipt-modal .modal-body {
+            padding: 0;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .receipt-modal iframe {
+            width: 100%;
+            border: none;
+            min-height: 500px;
+        }
+        .receipt-modal .modal-header {
+            background: var(--gradient);
+            color: white;
+            border-bottom: none;
+            padding: 15px 20px;
+        }
+        .receipt-modal .modal-header .btn-close {
+            filter: invert(1);
+        }
+        .receipt-modal .modal-footer {
+            border-top: 1px solid #e2e8f0;
+            padding: 15px 20px;
+        }
     </style>
 </head>
 <body>
@@ -302,6 +334,31 @@
                 <div id="refundSuccessActions" style="display: none; margin-top: 20px;">
                     <button type="button" class="btn btn-success w-100" id="printRefundReceiptBtn">
                         <i class="bi bi-printer me-2"></i>Print Refund Receipt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipt Print Modal -->
+    <div class="modal fade receipt-modal" id="receiptModal" tabindex="-1" aria-labelledby="receiptModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="receiptModalLabel">
+                        <i class="bi bi-receipt me-2"></i>Refund Receipt
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="receiptModalBody">
+                    <!-- Receipt content will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-2"></i>Close
+                    </button>
+                    <button type="button" class="btn btn-primary" id="modalPrintBtn">
+                        <i class="bi bi-printer me-2"></i>Print Receipt
                     </button>
                 </div>
             </div>
@@ -412,6 +469,9 @@
         }
 
         function displaySelectedTransaction(transaction) {
+            // Update selectedTransactionData with full transaction details
+            selectedTransactionData = transaction;
+            
             document.getElementById('transactionId').value = transaction.id;
             document.getElementById('selectedTransactionNumber').textContent = transaction.transaction_number;
             document.getElementById('selectedTransactionMeta').textContent = `${transaction.items_count} item(s)`;
@@ -511,101 +571,59 @@
             }, 5000);
         }
 
-        // Handle print refund receipt
-        document.getElementById('printRefundReceiptBtn').addEventListener('click', async function() {
-            if (!lastRefundReceiptData) {
-                showAlert('No receipt data available', 'warning');
-                return;
-            }
-
-            const printBtn = this;
-            printBtn.disabled = true;
-            printBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Printing...';
-
-            let printSuccess = false;
-            try {
-                // Try direct print first
-                const payload = {
-                    text: lastRefundReceiptData.text
-                };
-
-                const res = await fetch('/api/print-receipt-local/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrftoken
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                const result = await res.json();
-                
-                if (result.success) {
-                    printSuccess = true;
-                    showAlert('Refund receipt printed successfully', 'success');
-                    // Refresh page after a short delay
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1500);
-                } else {
-                    // Fallback to browser print dialog
-                    printRefundReceiptInBrowser(lastRefundReceiptData, true);
-                }
-            } catch (err) {
-                // Fallback to browser print dialog
-                printRefundReceiptInBrowser(lastRefundReceiptData, true);
-            } finally {
-                if (!printSuccess) {
-                    printBtn.disabled = false;
-                    printBtn.innerHTML = '<i class="bi bi-printer me-2"></i>Print Refund Receipt';
-                }
-            }
-        });
-
-        function printRefundReceiptInBrowser(receiptData, shouldRefresh = false) {
-            // Create a new window for printing
-            const printWindow = window.open('', '_blank', 'width=420,height=600');
-            if (!printWindow) {
-                showAlert('Please allow popups to print the receipt', 'warning');
-                return;
-            }
-
-            printWindow.document.write(receiptData.html || receiptData.text);
-            printWindow.document.close();
+        // Function to reset form back to search state
+        function resetToSearchState() {
+            // Clear search input
+            transactionSearch.value = '';
             
-            // Wait for content to load, then print
-            printWindow.onload = function() {
-                printWindow.focus();
-                printWindow.print();
-                
-                // Handle afterprint event to refresh page
-                if (shouldRefresh) {
-                    printWindow.onafterprint = function() {
-                        showAlert('Refund receipt printed successfully', 'success');
-                        setTimeout(() => {
-                            printWindow.close();
-                            window.location.reload();
-                        }, 500);
-                    };
-                    
-                    // Fallback: if afterprint doesn't fire, refresh after a delay
-                    setTimeout(() => {
-                        if (printWindow && !printWindow.closed) {
-                            printWindow.close();
-                            showAlert('Refund receipt printed successfully', 'success');
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 1500);
-                        }
-                    }, 3000);
-                } else {
-                    // Close window after printing (optional, with delay)
-                    setTimeout(() => {
-                        printWindow.close();
-                    }, 500);
-                }
-            };
+            // Hide selected transaction
+            selectedTransaction.style.display = 'none';
+            
+            // Hide refund success actions
+            document.getElementById('refundSuccessActions').style.display = 'none';
+            
+            // Clear form
+            document.getElementById('refundForm').reset();
+            document.getElementById('transactionId').value = '';
+            document.getElementById('refundReason').value = '';
+            
+            // Clear transaction results
+            transactionResults.style.display = 'none';
+            transactionResults.innerHTML = '';
+            
+            // Reset data
+            selectedTransactionData = null;
+            lastRefundReceiptData = null;
+            
+            // Focus back on search input
+            transactionSearch.focus();
         }
+
+        // Handle print refund receipt
+        document.getElementById('printRefundReceiptBtn').addEventListener('click', function() {
+            // Get transaction ID from form or selected transaction data
+            const transactionId = document.getElementById('transactionId').value || (selectedTransactionData && selectedTransactionData.id);
+            
+            if (!transactionId) {
+                showAlert('No transaction data available', 'warning');
+                return;
+            }
+
+            // Open refund receipt in new window (will auto-print)
+            const receiptUrl = `/refund-receipt/${transactionId}/`;
+            const printWin = window.open(receiptUrl, 'REFUND_RECEIPT_PRINT', 'width=420,height=600,scrollbars=yes');
+            
+            if (!printWin) {
+                showAlert('Popup blocked. Please allow popups for this site to print receipts.', 'warning');
+                return;
+            }
+            
+            // Immediately reset to search state after opening print window
+            setTimeout(() => {
+                resetToSearchState();
+                showAlert('Refund receipt opened. Ready to process another refund.', 'success');
+            }, 300);
+        });
     </script>
 </body>
 </html>

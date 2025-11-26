@@ -51,6 +51,9 @@ urlpatterns = [
     path('process-refund/', admin_panel_views.process_refund, name='process_refund'),
     path('api/search-transactions-for-refund/', admin_panel_views.api_search_transactions_for_refund, name='api_search_transactions_for_refund'),
     path('api/process-refund/', admin_panel_views.api_process_refund, name='api_process_refund'),
+    path('refund-receipt/<int:transaction_id>/', admin_panel_views.view_refund_receipt, name='view_refund_receipt'),
+    path('cash-receipt/<int:transaction_id>/', admin_panel_views.view_cash_receipt, name='view_cash_receipt'),
+    path('debit-credit-receipt/<int:transaction_id>/', admin_panel_views.view_debit_credit_receipt, name='view_debit_credit_receipt'),
 ]
 
 if settings.DEBUG:

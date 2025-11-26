@@ -315,7 +315,22 @@ def process_payment(request):
             transaction.status = 'completed'
         
         elif payment_method == 'cash':
-            transaction.amount_paid = transaction.total_amount
+            # Get cash amount from request, validate it's sufficient
+            cash_amount = data.get('cash_amount')
+            if cash_amount is not None:
+                try:
+                    cash_amount = Decimal(str(cash_amount))
+                    if cash_amount < transaction.total_amount:
+                        return JsonResponse({
+                            'success': False, 
+                            'error': f'Insufficient cash. Total: ₱{transaction.total_amount}, Received: ₱{cash_amount}'
+                        })
+                    transaction.amount_paid = cash_amount
+                except (ValueError, TypeError):
+                    return JsonResponse({'success': False, 'error': 'Invalid cash amount'})
+            else:
+                # If no cash_amount provided, assume exact payment
+                transaction.amount_paid = transaction.total_amount
             transaction.status = 'completed'
         
         transaction.save()
@@ -333,19 +348,27 @@ def process_payment(request):
             member_summary = {
                 'id': member.id,
                 'name': member.full_name,
+                'balance': str(member.balance),
+                'available_balance': str(member.available_balance),
                 'balance_before': str(member_before_balance) if member_before_balance is not None else str(member.balance),
                 'balance_after': str(member.balance),
                 'utang_before': str(member_before_utang) if member_before_utang is not None else str(member.utang_balance),
                 'utang_after': str(member.utang_balance),
             }
 
+        # Calculate change for cash payments
+        change_amount = Decimal('0.00')
+        if payment_method == 'cash' and transaction.amount_paid > transaction.total_amount:
+            change_amount = transaction.amount_paid - transaction.total_amount
+
         return JsonResponse({
             'success': True,
             'transaction': {
                 'id': transaction.id,
                 'transaction_number': transaction.transaction_number,
-                    'subtotal': str(transaction.subtotal),
-                    'vatable_sale': str(transaction.vatable_sale),
+                'payment_method': transaction.payment_method,
+                'subtotal': str(transaction.subtotal),
+                'vatable_sale': str(transaction.vatable_sale),
                 'vat_amount': str(transaction.vat_amount),
                 'items': [
                     {
@@ -363,6 +386,7 @@ def process_payment(request):
                 'new_utang_balance': str(member.utang_balance) if member else '0.00',
                 'amount_from_balance': str(transaction.amount_from_balance),
                 'amount_paid': str(transaction.amount_paid),
+                'change_amount': str(change_amount),
                 'member': member_summary,
             }
         })
@@ -379,35 +403,224 @@ def process_payment(request):
 @require_http_methods(["POST"])
 def print_receipt_local(request):
     """
-    POST endpoint to print plain-text receipts on the server's default Windows printer.
-    Expects JSON: { "text": "...receipt text..." }
-    This endpoint attempts to use pywin32 (win32print). If pywin32 is not installed or
+    POST endpoint to print receipts on the server's default Windows printer.
+    Expects JSON: { "text": "...receipt text..." } or { "html": "...", "text": "..." }
+    If HTML is provided, prints the HTML directly to match the exact same template as manual printing.
+    This endpoint attempts to use pywin32 (win32api) or webbrowser. If these are not available or
     printing fails, it returns success: false with an error message.
     """
     try:
         data = json.loads(request.body)
         text = data.get('text', '')
+        html = data.get('html', '')
+        
+        # If HTML is provided, try to print it directly using the template formatting
+        # This ensures the refund_receipt.html template is used with proper CSS styling
+        if html:
+            try:
+                import tempfile
+                import os
+                import subprocess
+                import webbrowser
+                
+                # Create a temporary HTML file with the receipt template
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as f:
+                    f.write(html)
+                    temp_file = f.name
+                
+                try:
+                    # Try to print using Windows default browser/print handler
+                    # This preserves the CSS formatting from refund_receipt.html
+                    os.startfile(temp_file, 'print')
+                    # Give it a moment to start printing
+                    import time
+                    time.sleep(1)
+                    return JsonResponse({'success': True, 'message': 'Receipt sent to printer using HTML template'})
+                except Exception as e:
+                    # Fallback: try using webbrowser
+                    try:
+                        webbrowser.open(temp_file)
+                        import time
+                        time.sleep(1)
+                        return JsonResponse({'success': True, 'message': 'Receipt opened in browser for printing'})
+                    except Exception as e2:
+                        # If HTML printing fails, fall through to text extraction
+                        pass
+                finally:
+                    # Clean up temp file after a delay (give print time to start)
+                    import threading
+                    def cleanup():
+                        import time
+                        time.sleep(5)
+                        try:
+                            os.unlink(temp_file)
+                        except:
+                            pass
+                    threading.Thread(target=cleanup, daemon=True).start()
+            except Exception as e:
+                # If HTML printing fails, fall through to text extraction
+                pass
+        
+        # Use provided text if available (it matches the HTML template exactly)
+        # Only extract from HTML if text is not provided
+        if not text and html:
+            try:
+                from html.parser import HTMLParser
+                import re
+                
+                # Extract the receiptPaper element content - this is the same element used in manual print
+                # Look for the receiptPaper div (by id or class) in the HTML
+                receipt_paper_match = re.search(
+                    r'<div[^>]*(?:id|class)=["\'][^"\']*receiptPaper[^"\']*["\'][^>]*>(.*?)</div>\s*(?:</div>|</body>)', 
+                    html, 
+                    re.DOTALL | re.IGNORECASE
+                )
+                
+                if receipt_paper_match:
+                    receipt_content = receipt_paper_match.group(1)
+                else:
+                    # Fallback: extract from body if receiptPaper not found
+                    body_match = re.search(r'<body[^>]*>(.*?)</body>', html, re.DOTALL | re.IGNORECASE)
+                    if body_match:
+                        receipt_content = body_match.group(1)
+                    else:
+                        receipt_content = html
+                
+                # Extract text from HTML, preserving structure and formatting
+                class ReceiptTextExtractor(HTMLParser):
+                    def __init__(self):
+                        super().__init__()
+                        self.lines = []
+                        self.current_line_parts = []
+                        
+                    def handle_data(self, data):
+                        data = data.strip()
+                        if data:
+                            self.current_line_parts.append(data)
+                            
+                    def handle_starttag(self, tag, attrs):
+                        attrs_dict = dict(attrs)
+                        class_attr = attrs_dict.get('class', '')
+                        # Section titles should be on their own line
+                        if 'rp-section-title' in class_attr:
+                            if self.current_line_parts:
+                                self.lines.append(' '.join(self.current_line_parts))
+                                self.current_line_parts = []
+                        elif tag == 'br':
+                            if self.current_line_parts:
+                                self.lines.append(' '.join(self.current_line_parts))
+                                self.current_line_parts = []
+                                
+                    def handle_endtag(self, tag):
+                        if tag in ['div', 'li', 'p']:
+                            if self.current_line_parts:
+                                self.lines.append(' '.join(self.current_line_parts))
+                                self.current_line_parts = []
+                        elif tag == 'ul':
+                            if self.current_line_parts:
+                                self.lines.append(' '.join(self.current_line_parts))
+                                self.current_line_parts = []
+                                
+                    def get_text(self):
+                        if self.current_line_parts:
+                            self.lines.append(' '.join(self.current_line_parts))
+                        # Filter out empty lines and join with line breaks
+                        return '\r\n'.join([line.strip() for line in self.lines if line.strip()])
+                
+                parser = ReceiptTextExtractor()
+                parser.feed(receipt_content)
+                extracted_text = parser.get_text()
+                
+                if extracted_text and len(extracted_text) > 50:
+                    text = extracted_text
+                else:
+                    return JsonResponse({
+                        'success': False, 
+                        'error': 'Could not extract text content from HTML receipt template'
+                    })
+                    
+            except Exception as e:
+                return JsonResponse({
+                    'success': False, 
+                    'error': f'Failed to extract text from HTML template: {str(e)}'
+                })
+        
+        # Fallback to text printing if HTML not available or HTML printing failed
         if not text:
-            return JsonResponse({'success': False, 'error': 'No text to print'})
+            return JsonResponse({'success': False, 'error': 'No content available for printing'})
 
+        # Text printing using win32print (for thermal printers that need raw text)
         try:
             import win32print
+        except ImportError:
+            return JsonResponse({
+                'success': False, 
+                'error': 'Printing module not available. Please install pywin32: pip install pywin32'
+            })
 
-            printer_name = win32print.GetDefaultPrinter()
+        try:
+            # Get default printer
+            try:
+                printer_name = win32print.GetDefaultPrinter()
+            except Exception as e:
+                return JsonResponse({
+                    'success': False, 
+                    'error': f'No default printer found. Please set a default printer in Windows. Error: {str(e)}'
+                })
+
+            if not printer_name:
+                return JsonResponse({
+                    'success': False, 
+                    'error': 'No default printer configured. Please set a default printer in Windows.'
+                })
+
+            # Open printer
             hPrinter = win32print.OpenPrinter(printer_name)
             try:
                 # Start a RAW print job
-                win32print.StartDocPrinter(hPrinter, 1, ("KioskReceipt", None, "RAW"))
-                win32print.StartPagePrinter(hPrinter)
-                # Write bytes to printer (encode as utf-8)
-                win32print.WritePrinter(hPrinter, text.encode('utf-8'))
-                win32print.EndPagePrinter(hPrinter)
-                win32print.EndDocPrinter(hPrinter)
+                job_info = ("KioskReceipt", None, "RAW")
+                job_id = win32print.StartDocPrinter(hPrinter, 1, job_info)
+                try:
+                    win32print.StartPagePrinter(hPrinter)
+                    # Ensure text ends with newlines for proper printing
+                    print_text = text
+                    if not print_text.endswith('\r\n'):
+                        print_text += '\r\n\r\n'
+                    # Write bytes to printer (encode as utf-8)
+                    win32print.WritePrinter(hPrinter, print_text.encode('utf-8'))
+                    win32print.EndPagePrinter(hPrinter)
+                except Exception as e:
+                    # Try to abort the job if page printing fails
+                    try:
+                        win32print.AbortPrinter(hPrinter)
+                    except:
+                        pass
+                    raise e
+                finally:
+                    win32print.EndDocPrinter(hPrinter)
             finally:
                 win32print.ClosePrinter(hPrinter)
 
-            return JsonResponse({'success': True})
+            return JsonResponse({'success': True, 'message': f'Receipt sent to printer: {printer_name}'})
         except Exception as e:
-            return JsonResponse({'success': False, 'error': f'Printing failed: {str(e)}'})
+            error_msg = str(e)
+            # Provide more helpful error messages
+            if 'Access is denied' in error_msg or 'access denied' in error_msg.lower():
+                return JsonResponse({
+                    'success': False, 
+                    'error': 'Access denied to printer. Please check printer permissions or try running the application as administrator.'
+                })
+            elif 'printer' in error_msg.lower() and 'not found' in error_msg.lower():
+                return JsonResponse({
+                    'success': False, 
+                    'error': 'Printer not found. Please check that the printer is connected and set as default.'
+                })
+            else:
+                return JsonResponse({
+                    'success': False, 
+                    'error': f'Printing failed: {error_msg}'
+                })
     except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'error': 'Invalid JSON'})
+        return JsonResponse({'success': False, 'error': 'Invalid JSON data received'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': f'Server error: {str(e)}'})

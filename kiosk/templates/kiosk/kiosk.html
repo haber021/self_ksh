@@ -33,6 +33,7 @@
         .cart-item:hover { box-shadow: 0 18px 32px rgba(16,24,40,0.08); transform: translateY(-2px); }
         .cart-item-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
         .cart-item-title { font-weight: 600; font-size: 1rem; margin-bottom: 0.1rem; }
+        .cart-item-title.low-stock { color: #dc3545; font-weight: 700; }
         .cart-item-meta { font-size: 0.85rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
         .qty-chip { background: rgba(31,122,58,0.1); color: var(--accent); padding: 2px 10px; border-radius: 999px; font-weight: 600; font-size: 0.82rem; }
         .price-tag { font-size: 1.15rem; font-weight: 700; color: var(--accent); }
@@ -59,6 +60,12 @@
         #memberInfo strong{color:var(--accent)}
         #memberInfo .badge{font-size:0.75rem;padding:4px 8px;vertical-align:middle}
         #memberInfo.cashier-mode{background:linear-gradient(180deg,#fff3cd, #ffeaa7);border-color:rgba(255,193,7,0.3);box-shadow:0 4px 12px rgba(255,193,7,0.15)}
+
+        /* Cash modal styling */
+        #cashModal .modal-header { border-bottom: 1px solid rgba(255,255,255,0.2); }
+        #cashModal #cashSubmitBtn:hover { background: var(--accent) !important; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(31,122,58,0.3); transition: all 0.2s ease; }
+        #cashModal #cashInput:focus { border-color: var(--brand); box-shadow: 0 0 0 0.2rem rgba(31,122,58,0.25); }
+        #cashModal .input-group-text { font-weight: 600; }
 
         /* Receipt tweaks (keep previous print rules) */
         /* Print: show only receipt when printing */
@@ -292,21 +299,98 @@
         }
 
         /* Receipt layout (print version) - thermal printer optimized */
-        .receipt-paper { font-family: "Courier New", monospace; font-size: 12pt; line-height: 1.45; width: 56mm; max-width: 56mm; margin: 0 auto; color: #000 !important; }
+        .receipt-paper { 
+            font-family: "Courier New", monospace; 
+            font-size: 11pt; 
+            line-height: 1.4; 
+            width: 56mm; 
+            max-width: 56mm; 
+            margin: 0 auto; 
+            color: #000 !important;
+            padding: 2mm;
+        }
         .receipt-paper * { color: #000 !important; }
         .receipt-paper .rp-center { text-align: center; }
-        .receipt-paper .rp-title { font-weight: 700; font-size: 13pt; margin: 2mm 0 1mm; color: #000 !important; }
-        .receipt-paper .rp-sub { font-size: 11pt; margin-bottom: 2mm; color: #000 !important; }
-        .receipt-paper .rp-line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; color: #000 !important; }
-        .receipt-paper .rp-line span { color: #000 !important; }
-        .receipt-paper .rp-sep { border-top: 1px dashed #000; margin: 2mm 0; }
-        .receipt-paper .rp-section-title { margin: 1mm 0; font-weight: 700; color: #000 !important; }
-        .receipt-paper .rp-items { list-style: none; padding: 0; margin: 0 0 2mm 0; }
-        .receipt-paper .rp-items li { margin: 1mm 0; font-size: 11pt; color: #000 !important; }
-        .receipt-paper .rp-subline { font-size: 10pt; color: #000 !important; }
-        .receipt-paper .rp-total { font-weight: 700; font-size: 12pt; color: #c00 !important; }
-        .receipt-paper .rp-box { border: 1px dashed #000; padding: 2mm; margin: 2mm 0; color: #000 !important; }
-        .receipt-paper .rp-thanks { margin-top: 2mm; font-weight: 700; color: #000 !important; }
+        .receipt-paper .rp-title { 
+            font-weight: 700; 
+            font-size: 13pt; 
+            margin: 2mm 0 1mm; 
+            color: #000 !important;
+            text-align: center;
+        }
+        .receipt-paper .rp-sub { 
+            font-size: 10pt; 
+            margin-bottom: 3mm; 
+            color: #000 !important;
+            text-align: center;
+        }
+        .receipt-paper .rp-line { 
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            width: 100%;
+            margin: 1.5mm 0;
+            color: #000 !important;
+        }
+        .receipt-paper .rp-line span:first-child { 
+            flex: 1;
+            text-align: left;
+            padding-right: 2mm;
+            word-wrap: break-word;
+            color: #000 !important;
+        }
+        .receipt-paper .rp-line span:last-child { 
+            flex-shrink: 0;
+            text-align: right;
+            white-space: nowrap;
+            color: #000 !important;
+        }
+        .receipt-paper .rp-sep { 
+            border-top: 1px dashed #000; 
+            margin: 3mm 0;
+            width: 100%;
+        }
+        .receipt-paper .rp-section-title { 
+            margin: 2mm 0 1mm 0; 
+            font-weight: 700;
+            font-size: 11pt;
+            color: #000 !important;
+            text-transform: uppercase;
+        }
+        .receipt-paper .rp-items { 
+            list-style: none; 
+            padding: 0; 
+            margin: 0 0 2mm 0; 
+        }
+        .receipt-paper .rp-items li { 
+            margin: 1.5mm 0; 
+            font-size: 10pt; 
+            color: #000 !important;
+        }
+        .receipt-paper .rp-subline { 
+            font-size: 9pt; 
+            color: #000 !important;
+            line-height: 1.3;
+        }
+        .receipt-paper .rp-total { 
+            font-weight: 700; 
+            font-size: 12pt; 
+            color: #c00 !important;
+            margin-top: 2mm;
+        }
+        .receipt-paper .rp-box { 
+            border: 1px dashed #000; 
+            padding: 2mm; 
+            margin: 2mm 0; 
+            color: #000 !important; 
+        }
+        .receipt-paper .rp-thanks { 
+            margin-top: 3mm; 
+            font-weight: 700;
+            font-size: 11pt;
+            color: #000 !important;
+            text-align: center;
+        }
 
         /* Print tuning for thermal paper */
         @page { size: 58mm auto; margin: 2mm; }
@@ -408,13 +492,9 @@
                         </div>
                     </div>
                     
-                    <div class="form-check form-switch mt-3 mb-2">
+                    <div class="form-check form-switch mt-3 mb-3">
                         <input class="form-check-input" type="checkbox" id="autoPrintToggle">
                         <label class="form-check-label" for="autoPrintToggle">Auto-print receipt</label>
-                    </div>
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="directPrintToggle">
-                        <label class="form-check-label" for="directPrintToggle">Direct print (no dialog)</label>
                     </div>
 
                     <button class="btn btn-danger w-100" onclick="clearCart()">
@@ -471,6 +551,45 @@
         </div>
     </div>
 
+    <!-- Cash input modal -->
+    <div class="modal fade" id="cashModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header text-white" style="background: linear-gradient(90deg, var(--brand), var(--accent));">
+                    <h5 class="modal-title"><i class="bi bi-cash"></i> Cash Payment</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="totalAmountDisplay" class="form-label fw-bold" style="color: var(--accent);">Total Amount:</label>
+                        <div class="input-group">
+                            <span class="input-group-text" style="background: rgba(31,122,58,0.1); color: var(--accent); border-color: rgba(31,122,58,0.2);">₱</span>
+                            <input type="text" id="totalAmountDisplay" class="form-control form-control-lg text-end fw-bold" readonly value="0.00" style="font-size: 1.5rem; color: var(--accent); border-color: rgba(31,122,58,0.2);">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cashInput" class="form-label fw-bold" style="color: var(--accent);">Cash Received:</label>
+                        <div class="input-group">
+                            <span class="input-group-text" style="background: rgba(31,122,58,0.1); color: var(--accent); border-color: rgba(31,122,58,0.2);">₱</span>
+                            <input type="number" id="cashInput" class="form-control form-control-lg text-end" step="0.01" min="0" placeholder="0.00" autofocus style="border-color: rgba(31,122,58,0.2);">
+                        </div>
+                        <div id="cashError" class="text-danger mt-2" style="display:none;"></div>
+                    </div>
+                    <div id="changeDisplay" class="alert" style="display:none; background: linear-gradient(180deg, #eaf8f0, #e6fbf2); border: 1px solid rgba(31,122,58,0.2); border-radius: 10px;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold" style="color: var(--accent);">Change:</span>
+                            <span id="changeAmount" class="fw-bold" style="font-size: 1.3rem; color: var(--accent);">₱0.00</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn" id="cashSubmitBtn" style="background: var(--brand); color: white; border: none;">Confirm Payment</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
     let cart = [];
@@ -478,6 +597,10 @@
     // Values injected from Django settings.
     const VAT_RATE = parseFloat('{{ VAT_RATE|default:0.12|floatformat:4 }}');
     const VAT_INCLUSIVE = {{ VAT_INCLUSIVE|yesno:"true,false"|default:"false" }};
+    // Low stock threshold - products with stock <= this value will be highlighted in red
+    const LOW_STOCK_THRESHOLD = 5;
+    // Auto-submit PIN when 4 digits are entered
+    const AUTO_SUBMIT_PIN = true;
 
         function getCookie(name) {
             let cookieValue = null;
@@ -497,7 +620,6 @@
         const csrftoken = getCookie('csrftoken');
         // Auto-print toggle storage key and helpers
         const AUTO_PRINT_KEY = 'kiosk_auto_print_receipt';
-        const DIRECT_PRINT_KEY = 'kiosk_direct_print_no_dialog';
 
         function isAutoPrintEnabled() {
             try {
@@ -512,50 +634,6 @@
             try { localStorage.setItem(AUTO_PRINT_KEY, on ? '1' : '0'); } catch (e) {}
             const el = document.getElementById('autoPrintToggle');
             if (el) el.checked = !!on;
-        }
-
-        function isDirectPrintEnabled() {
-            try {
-                const v = localStorage.getItem(DIRECT_PRINT_KEY);
-                if (v === null) return false; // default off
-                return v === '1' || v === 'true';
-            } catch (e) { return false; }
-        }
-
-        function setDirectPrintEnabled(on) {
-            try { localStorage.setItem(DIRECT_PRINT_KEY, on ? '1' : '0'); } catch (e) {}
-            const el = document.getElementById('directPrintToggle');
-            if (el) el.checked = !!on;
-        }
-
-        // Attempt direct/silent print by POSTing to the local print endpoint.
-        // Returns a Promise<boolean> that resolves true on success, false on failure.
-        async function attemptDirectPrint(payload) {
-            try {
-                const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 8000);
-                const res = await fetch('/api/print-receipt-local/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrftoken
-                    },
-                    body: JSON.stringify(payload),
-                    signal: controller.signal
-                });
-                clearTimeout(timeout);
-
-                // Accept any 2xx as success. Try parsing JSON safely but tolerate non-JSON responses.
-                if (!res.ok) return false;
-                let body = null;
-                try { body = await res.json(); } catch (e) { /* non-json response, but treat 200 as success */ }
-                if (body && typeof body === 'object') {
-                    return !!body.success; // only success:true considered success
-                }
-                return true;
-            } catch (e) {
-                return false;
-            }
         }
 
         function scanProduct() {
@@ -788,11 +866,13 @@
                     const available = typeof item.available_stock !== 'undefined' ? item.available_stock : (item.stock || item.stock_quantity || 0);
                     const remaining = Math.max((available || 0) - item.quantity, 0);
                     const lineTotal = (parseFloat(item.price) * item.quantity).toFixed(2);
+                    const isLowStock = remaining <= LOW_STOCK_THRESHOLD;
+                    const lowStockClass = isLowStock ? ' low-stock' : '';
                     return `
                         <div class="cart-item">
                             <div class="cart-item-header">
                                 <div>
-                                    <div class="cart-item-title">${item.name}</div>
+                                    <div class="cart-item-title${lowStockClass}">${item.name}</div>
                                     <div class="cart-item-meta">
                                         <span>${item.barcode || 'No barcode'}</span>
                                         <span class="qty-chip">Remaining: ${remaining}</span>
@@ -848,10 +928,46 @@
             document.getElementById('paymentOptions').style.display = cart.length > 0 ? 'block' : 'none';
         }
 
-        function processPayment(method, pin) {
+        function processPayment(method, pin, cashAmount) {
             if (cart.length === 0) {
                 showMessage('Cart is empty!', 'warning');
                 return;
+            }
+
+            // For cash payments, cash amount is REQUIRED - show modal if missing
+            if (method === 'cash') {
+                if (cashAmount === null || cashAmount === undefined || isNaN(parseFloat(cashAmount)) || parseFloat(cashAmount) <= 0) {
+                    // Cash amount is missing - show cash modal BEFORE processing
+                    showMessage('Please enter the cash amount', 'info');
+                    showCashModal().then(amount => {
+                        if (amount !== null && amount !== undefined && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0) {
+                            // Recursively call with the cash amount
+                            processPayment(method, pin, amount);
+                        } else {
+                            showMessage('Cash payment cancelled. Transaction not processed.', 'warning');
+                        }
+                    });
+                    return; // Stop here - don't process payment without cash amount
+                }
+                
+                // Validate cash amount is sufficient
+                const totalEl = document.getElementById('total');
+                let finalTotal = 0;
+                if (totalEl) {
+                    const totalText = totalEl.textContent.replace(/[₱,\s]/g, '');
+                    finalTotal = parseFloat(totalText) || 0;
+                }
+                const cashValue = parseFloat(cashAmount);
+                if (cashValue < finalTotal) {
+                    showMessage(`Insufficient cash. Total: ₱${finalTotal.toFixed(2)}, Received: ₱${cashValue.toFixed(2)}`, 'danger');
+                    // Show cash modal again
+                    showCashModal().then(amount => {
+                        if (amount !== null && amount !== undefined && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0) {
+                            processPayment(method, pin, amount);
+                        }
+                    });
+                    return;
+                }
             }
 
             const items = cart.map(item => ({product_id: item.id, quantity: item.quantity}));
@@ -863,6 +979,12 @@
             };
 
             if (pin) payload.pin = pin;
+            if (method === 'cash' && cashAmount !== null && cashAmount !== undefined) {
+                payload.cash_amount = parseFloat(cashAmount);
+            }
+
+            // Show loading state
+            showMessage('Processing payment...', 'info');
 
             fetch('/api/process-payment/', {
                 method: 'POST',
@@ -875,10 +997,14 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
+                    // Payment successful - show receipt
                     showReceipt(data.transaction);
                 } else {
                     showMessage('Payment failed: ' + data.error, 'danger');
                 }
+            })
+            .catch(error => {
+                showMessage('Payment error: ' + error.message, 'danger');
             });
         }
 
@@ -948,7 +1074,20 @@
                 }
                 return;
             }
-            // cash or other methods
+            // cash payment - ALWAYS show cash input modal FIRST before processing
+            if (method === 'cash') {
+                showCashModal().then(cashAmount => {
+                    if (cashAmount !== null && cashAmount !== undefined && !isNaN(parseFloat(cashAmount)) && parseFloat(cashAmount) > 0) {
+                        // Only proceed if valid cash amount was entered
+                        processPayment(method, null, cashAmount);
+                    } else {
+                        // User cancelled or entered invalid amount
+                        showMessage('Cash payment cancelled. Please enter a valid cash amount to proceed.', 'warning');
+                    }
+                });
+                return;
+            }
+            // other methods (debit/credit already handled above)
             processPayment(method, null);
         }
 
@@ -967,6 +1106,9 @@
                 function cleanup() {
                     submitBtn.removeEventListener('click', onSubmit);
                     pinInput.removeEventListener('keypress', onKey);
+                    if (AUTO_SUBMIT_PIN) {
+                        pinInput.removeEventListener('input', onInput);
+                    }
                     pinModalEl.removeEventListener('hidden.bs.modal', onCancel);
                 }
 
@@ -984,6 +1126,18 @@
 
                 function onKey(e) { if (e.key === 'Enter') onSubmit(); }
 
+                function onInput(e) {
+                    // Auto-submit when 4 digits are entered
+                    if (AUTO_SUBMIT_PIN && pinInput.value.length === 4) {
+                        // Small delay to ensure the last digit is fully entered
+                        setTimeout(() => {
+                            if (pinInput.value.length === 4) {
+                                onSubmit();
+                            }
+                        }, 50);
+                    }
+                }
+
                 function onCancel() {
                     cleanup();
                     resolve(null);
@@ -991,8 +1145,113 @@
 
                 submitBtn.addEventListener('click', onSubmit);
                 pinInput.addEventListener('keypress', onKey);
+                if (AUTO_SUBMIT_PIN) {
+                    pinInput.addEventListener('input', onInput);
+                }
                 pinModalEl.addEventListener('hidden.bs.modal', onCancel, { once: true });
                 pinInput.focus();
+            });
+        }
+
+        function showCashModal() {
+            return new Promise((resolve) => {
+                // Get the total from order summary (matching the displayed total)
+                const totalEl = document.getElementById('total');
+                let finalTotal = 0;
+                if (totalEl) {
+                    const totalText = totalEl.textContent.replace(/[₱,\s]/g, '');
+                    finalTotal = parseFloat(totalText) || 0;
+                } else {
+                    // Fallback: calculate if element not found
+                    const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0);
+                    if (VAT_INCLUSIVE) {
+                        finalTotal = subtotal;
+                    } else {
+                        finalTotal = subtotal;
+                    }
+                }
+
+                const cashInput = document.getElementById('cashInput');
+                const cashError = document.getElementById('cashError');
+                const totalAmountDisplay = document.getElementById('totalAmountDisplay');
+                const changeDisplay = document.getElementById('changeDisplay');
+                const changeAmount = document.getElementById('changeAmount');
+                const cashModalEl = document.getElementById('cashModal');
+                const cashModal = new bootstrap.Modal(cashModalEl);
+
+                // Set total amount to match order summary total
+                totalAmountDisplay.value = finalTotal.toFixed(2);
+                cashInput.value = '';
+                cashError.style.display = 'none';
+                changeDisplay.style.display = 'none';
+
+                cashModal.show();
+
+                const submitBtn = document.getElementById('cashSubmitBtn');
+
+                function updateChange() {
+                    const cashValue = parseFloat(cashInput.value) || 0;
+                    const change = cashValue - finalTotal;
+                    
+                    if (cashValue > 0) {
+                        if (change < 0) {
+                            cashError.innerText = `Insufficient cash. Need ₱${(finalTotal - cashValue).toFixed(2)} more.`;
+                            cashError.style.display = 'block';
+                            changeDisplay.style.display = 'none';
+                        } else {
+                            cashError.style.display = 'none';
+                            changeDisplay.style.display = 'block';
+                            changeAmount.textContent = `₱${change.toFixed(2)}`;
+                        }
+                    } else {
+                        cashError.style.display = 'none';
+                        changeDisplay.style.display = 'none';
+                    }
+                }
+
+                function cleanup() {
+                    submitBtn.removeEventListener('click', onSubmit);
+                    cashInput.removeEventListener('input', updateChange);
+                    cashInput.removeEventListener('keypress', onKey);
+                    cashModalEl.removeEventListener('hidden.bs.modal', onCancel);
+                }
+
+                function onSubmit() {
+                    const cashValue = parseFloat(cashInput.value);
+                    if (!cashInput.value || isNaN(cashValue) || cashValue <= 0) {
+                        cashError.innerText = 'Please enter a valid cash amount';
+                        cashError.style.display = 'block';
+                        return;
+                    }
+                    if (cashValue < finalTotal) {
+                        cashError.innerText = `Insufficient cash. Need ₱${(finalTotal - cashValue).toFixed(2)} more.`;
+                        cashError.style.display = 'block';
+                        return;
+                    }
+                    cleanup();
+                    cashModal.hide();
+                    resolve(cashValue);
+                }
+
+                function onKey(e) { 
+                    if (e.key === 'Enter') {
+                        onSubmit();
+                    } else {
+                        // Update change display as user types
+                        setTimeout(updateChange, 10);
+                    }
+                }
+
+                function onCancel() {
+                    cleanup();
+                    resolve(null);
+                }
+
+                submitBtn.addEventListener('click', onSubmit);
+                cashInput.addEventListener('input', updateChange);
+                cashInput.addEventListener('keypress', onKey);
+                cashModalEl.addEventListener('hidden.bs.modal', onCancel, { once: true });
+                cashInput.focus();
             });
         }
 
@@ -1009,7 +1268,8 @@
             const patronagePercent = parseFloat(transaction.patronage_percent || 2);
             const patronageAmt = parseFloat(transaction.patronage_amount || (subtotal * (patronagePercent/100)) || 0);
             const total = parseFloat(transaction.total_amount || subtotal + patronageAmt || 0);
-            const rfidUsed = parseFloat(transaction.amount_paid_by_member || transaction.paid_by_member || transaction.rfid_used || transaction.amount_paid || 0);
+            // For cash payments, rfidUsed should be 0; for debit, use amount_from_balance
+            const rfidUsed = transaction.payment_method === 'cash' ? 0 : parseFloat(transaction.amount_paid_by_member || transaction.paid_by_member || transaction.rfid_used || transaction.amount_from_balance || 0);
             const creditAmt = parseFloat(transaction.amount_to_utang || transaction.credit || 0);
 
             // Compute VAT and vatable sale for transparency (use transaction values when provided)
@@ -1106,34 +1366,37 @@
 
                     <div class="rd-payment-section">
                         <div class="rd-section-title" style="margin-top: 0;">Payment Details</div>
+                        ${ transaction.payment_method === 'cash' ? `
+                        <div class="rd-payment-row">
+                            <span class="rd-line-label">Cash Received:</span>
+                            <span class="rd-line-value">₱${parseFloat(transaction.amount_paid || total).toFixed(2)}</span>
+                        </div>
+                        ${ parseFloat(transaction.change_amount || 0) > 0 ? `
+                        <div class="rd-payment-row">
+                            <span class="rd-line-label">Change:</span>
+                            <span class="rd-line-value" style="color: var(--brand); font-weight: 700;">₱${parseFloat(transaction.change_amount || 0).toFixed(2)}</span>
+                        </div>
+                        ` : '' }
+                        ` : '' }
+                        ${ transaction.payment_method === 'debit' || rfidUsed > 0 ? `
                         <div class="rd-payment-row">
                             <span class="rd-line-label">RFID Used:</span>
                             <span class="rd-line-value">₱${rfidUsed.toFixed(2)}</span>
                         </div>
+                        ` : '' }
+                        ${ transaction.payment_method === 'credit' || creditAmt > 0 ? `
                         <div class="rd-payment-row">
                             <span class="rd-line-label">Credit (Utang):</span>
                             <span class="rd-line-value">₱${creditAmt.toFixed(2)}</span>
                         </div>
+                        ` : '' }
                     </div>
 
-                    ${ memberSummary ? `
+                    ${ memberSummary && transaction.payment_method !== 'cash' ? `
                     <div class="rd-member-summary">
-                        <div class="rd-section-title" style="margin-top: 0; color: var(--accent);">Member Account Summary</div>
                         <div class="rd-member-row">
-                            <span class="rd-line-label">Available Balance (Before):</span>
-                            <span class="rd-line-value">₱${parseFloat(memberSummary.balance_before||0).toFixed(2)}</span>
-                        </div>
-                        <div class="rd-member-row">
-                            <span class="rd-line-label">Available Balance (After):</span>
-                            <span class="rd-line-value">₱${parseFloat(memberSummary.balance_after||0).toFixed(2)}</span>
-                        </div>
-                        <div class="rd-member-row">
-                            <span class="rd-line-label">Utang Balance (Before):</span>
-                            <span class="rd-line-value">₱${parseFloat(memberSummary.utang_before||0).toFixed(2)}</span>
-                        </div>
-                        <div class="rd-member-row">
-                            <span class="rd-line-label">Utang Balance (After):</span>
-                            <span class="rd-line-value">₱${parseFloat(memberSummary.utang_after||0).toFixed(2)}</span>
+                            <span class="rd-line-label">Balance:</span>
+                            <span class="rd-line-value">₱${parseFloat(memberSummary.balance||memberSummary.available_balance||0).toFixed(2)}</span>
                         </div>
                     </div>
                     ` : '' }
@@ -1154,11 +1417,19 @@
                     ${ memberId ? `<div class="rp-line"><span>Member ID:</span><span>${memberId}</span></div>` : '' }
                     <div class="rp-section-title">ITEMS</div>
                     <ul class="rp-items">
-                        ${items.map(i => `
+                        ${items.map(i => {
+                            const productName = (i.product_name || '').toString();
+                            const qty = i.quantity ? ` x${i.quantity}` : '';
+                            const price = parseFloat(i.total_price || (i.unit_price * i.quantity) || 0).toFixed(2);
+                            return `
                             <li>
-                                <div class="rp-line"><span>${i.product_name} ${i.quantity ? '('+i.quantity+')' : ''}</span><span>₱${parseFloat(i.total_price || (i.unit_price * i.quantity) || 0).toFixed(2)}</span></div>
+                                <div class="rp-line">
+                                    <span>${productName}${qty}</span>
+                                    <span>₱${price}</span>
+                                </div>
                             </li>
-                        `).join('')}
+                        `;
+                        }).join('')}
                     </ul>
                     <div class="rp-sep"></div>
                     <div class="rp-line"><span>Vatable Sale</span><span>₱${vatableSale.toFixed(2)}</span></div>
@@ -1168,14 +1439,21 @@
                     <div class="rp-line rp-total"><span>Total:</span><span>₱${total.toFixed(2)}</span></div>
 
                     <div class="rp-section-title">PAYMENT</div>
+                    ${ transaction.payment_method === 'cash' ? `
+                    <div class="rp-line"><span>Cash Received:</span><span>₱${parseFloat(transaction.amount_paid || total).toFixed(2)}</span></div>
+                    ${ parseFloat(transaction.change_amount || 0) > 0 ? `
+                    <div class="rp-line"><span>Change:</span><span>₱${parseFloat(transaction.change_amount || 0).toFixed(2)}</span></div>
+                    ` : '' }
+                    ` : '' }
+                    ${ transaction.payment_method === 'debit' || rfidUsed > 0 ? `
                     <div class="rp-line"><span>RFID Used:</span><span>₱${rfidUsed.toFixed(2)}</span></div>
+                    ` : '' }
+                    ${ transaction.payment_method === 'credit' || creditAmt > 0 ? `
                     <div class="rp-line"><span>Credit (Utang):</span><span>₱${creditAmt.toFixed(2)}</span></div>
-                    ${ memberSummary ? `
+                    ` : '' }
+                    ${ memberSummary && transaction.payment_method !== 'cash' ? `
                         <div class="rp-sep"></div>
-                        <div class="rp-line"><span>Available (Before)</span><span>₱${parseFloat(memberSummary.balance_before||0).toFixed(2)}</span></div>
-                        <div class="rp-line"><span>Available (After)</span><span>₱${parseFloat(memberSummary.balance_after||0).toFixed(2)}</span></div>
-                        <div class="rp-line"><span>Utang (Before)</span><span>₱${parseFloat(memberSummary.utang_before||0).toFixed(2)}</span></div>
-                        <div class="rp-line"><span>Utang (After)</span><span>₱${parseFloat(memberSummary.utang_after||0).toFixed(2)}</span></div>
+                        <div class="rp-line"><span> Balance</span><span>₱${parseFloat(memberSummary.balance||memberSummary.available_balance||0).toFixed(2)}</span></div>
                     ` : '' }
 
                     <div class="rp-center rp-thanks">Thank you for your purchase!</div>
@@ -1219,20 +1497,27 @@
                 lines.push(money(total));
                 lines.push('');
                 lines.push('PAYMENT');
-                lines.push('RFID Used:');
-                lines.push(money(rfidUsed));
-                lines.push('Credit (Utang):');
-                lines.push(money(creditAmt));
-                if (transaction.member) {
+                if (transaction.payment_method === 'cash') {
+                    lines.push('Cash Received:');
+                    lines.push(money(transaction.amount_paid || total));
+                    if (parseFloat(transaction.change_amount || 0) > 0) {
+                        lines.push('Change:');
+                        lines.push(money(transaction.change_amount || 0));
+                    }
+                } else {
+                    if (transaction.payment_method === 'debit' || rfidUsed > 0) {
+                        lines.push('RFID Used:');
+                        lines.push(money(rfidUsed));
+                    }
+                    if (transaction.payment_method === 'credit' || creditAmt > 0) {
+                        lines.push('Credit (Utang):');
+                        lines.push(money(creditAmt));
+                    }
+                }
+                if (transaction.member && transaction.payment_method !== 'cash') {
                     lines.push('');
-                    lines.push('Member Available (Before):');
-                    lines.push(money(transaction.member.balance_before));
-                    lines.push('Member Available (After):');
-                    lines.push(money(transaction.member.balance_after));
-                    lines.push('Member Utang (Before):');
-                    lines.push(money(transaction.member.utang_before));
-                    lines.push('Member Utang (After):');
-                    lines.push(money(transaction.member.utang_after));
+                    lines.push(' Balance:');
+                    lines.push(money(transaction.member.balance || transaction.member.available_balance || 0));
                 }
                 lines.push('');
                 lines.push('Thank you for your purchase!');
@@ -1255,22 +1540,125 @@
                     if (wasHidden) paperEl.style.display = 'none';
                     const css = `
                         <style>
-                            @page { size: 58mm auto; margin: 2mm; }
-                            html, body { width: 58mm; padding: 0; margin: 0; }
-                            .receipt-paper { font-family: "Courier New", monospace; font-size: 12pt; line-height: 1.45; width: 56mm; max-width: 56mm; margin: 0 auto; color: #000 !important; }
-                            .receipt-paper * { color: #000 !important; }
-                            .receipt-paper .rp-center { text-align: center; }
-                            .receipt-paper .rp-title { font-weight: 700; font-size: 13pt; margin: 2mm 0 1mm; }
-                            .receipt-paper .rp-sub { font-size: 11pt; margin-bottom: 2mm; }
-                            .receipt-paper .rp-line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-                            .receipt-paper .rp-sep { border-top: 1px dashed #000; margin: 2mm 0; }
-                            .receipt-paper .rp-section-title { margin: 1mm 0; font-weight: 700; }
-                            .receipt-paper .rp-items { list-style: none; padding: 0; margin: 0 0 2mm 0; }
-                            .receipt-paper .rp-items li { margin: 1mm 0; }
-                            .receipt-paper .rp-subline { font-size: 10pt; color: #000; }
-                            .receipt-paper .rp-total { font-weight: 700; font-size: 12pt; color: #c00 !important; }
-                            .receipt-paper .rp-box { border: 1px dashed #000; padding: 2mm; margin: 2mm 0; }
-                            .receipt-paper .rp-thanks { margin-top: 2mm; }
+                            @page { 
+                                size: 58mm auto; 
+                                margin: 2mm; 
+                            }
+                            @media print {
+                                @page { 
+                                    size: 58mm auto; 
+                                    margin: 2mm; 
+                                }
+                            }
+                            * {
+                                margin: 0;
+                                padding: 0;
+                                box-sizing: border-box;
+                            }
+                            html, body { 
+                                width: 58mm; 
+                                padding: 0; 
+                                margin: 0;
+                                font-family: "Courier New", monospace;
+                                background: white;
+                            }
+                            .receipt-paper { 
+                                font-family: "Courier New", monospace; 
+                                font-size: 11pt; 
+                                line-height: 1.4; 
+                                width: 56mm; 
+                                max-width: 56mm; 
+                                margin: 0 auto; 
+                                padding: 2mm;
+                                color: #000 !important;
+                            }
+                            .receipt-paper * { 
+                                color: #000 !important; 
+                                background: transparent !important;
+                            }
+                            .receipt-paper .rp-center { 
+                                text-align: center; 
+                            }
+                            .receipt-paper .rp-title { 
+                                font-weight: 700; 
+                                font-size: 13pt; 
+                                margin: 2mm 0 1mm; 
+                                color: #000 !important;
+                                text-align: center;
+                            }
+                            .receipt-paper .rp-sub { 
+                                font-size: 10pt; 
+                                margin-bottom: 3mm; 
+                                color: #000 !important;
+                                text-align: center;
+                            }
+                            .receipt-paper .rp-line { 
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: baseline;
+                                width: 100%;
+                                margin: 1.5mm 0;
+                                color: #000 !important;
+                            }
+                            .receipt-paper .rp-line span:first-child { 
+                                flex: 1;
+                                text-align: left;
+                                padding-right: 2mm;
+                                word-wrap: break-word;
+                                color: #000 !important;
+                            }
+                            .receipt-paper .rp-line span:last-child { 
+                                flex-shrink: 0;
+                                text-align: right;
+                                white-space: nowrap;
+                                color: #000 !important;
+                            }
+                            .receipt-paper .rp-sep { 
+                                border-top: 1px dashed #000; 
+                                margin: 3mm 0;
+                                width: 100%;
+                            }
+                            .receipt-paper .rp-section-title { 
+                                margin: 2mm 0 1mm 0; 
+                                font-weight: 700;
+                                font-size: 11pt;
+                                color: #000 !important;
+                                text-transform: uppercase;
+                            }
+                            .receipt-paper .rp-items { 
+                                list-style: none; 
+                                padding: 0; 
+                                margin: 0 0 2mm 0; 
+                            }
+                            .receipt-paper .rp-items li { 
+                                margin: 1.5mm 0; 
+                                font-size: 10pt; 
+                                color: #000 !important;
+                            }
+                            .receipt-paper .rp-subline { 
+                                font-size: 9pt; 
+                                color: #000 !important;
+                                line-height: 1.3;
+                            }
+                            .receipt-paper .rp-total { 
+                                font-weight: 700; 
+                                font-size: 12pt; 
+                                color: #c00 !important;
+                                margin-top: 2mm;
+                            }
+                            .receipt-paper .rp-box { 
+                                border: 1px dashed #000; 
+                                padding: 2mm; 
+                                margin: 2mm 0; 
+                                color: #000 !important; 
+                            }
+                            .receipt-paper .rp-thanks { 
+                                margin-top: 3mm; 
+                                font-weight: 700;
+                                font-size: 11pt;
+                                color: #000 !important;
+                                text-align: center;
+                            }
                         </style>
                     `;
                     window.__lastReceiptHtml = `<!doctype html><html><head><meta charset="utf-8"><title>Receipt</title>${css}</head><body>${paperHtml}</body></html>`;
@@ -1284,54 +1672,249 @@
         }
 
         async function printReceipt() {
-            const paper = document.getElementById('receiptPaper');
-            // If direct (silent) printing is enabled, send the HTML/text to the
-            // server printing endpoint instead of opening the print dialog.
-            if (isDirectPrintEnabled() && (window.__lastReceiptHtml || window.__lastReceiptText)) {
-                const payload = window.__lastReceiptHtml ? { html: window.__lastReceiptHtml, text: window.__lastReceiptText } : { text: window.__lastReceiptText };
-                const ok = await attemptDirectPrint(payload);
-                if (ok) {
-                    try { const modalInstance = bootstrap.Modal.getInstance(document.getElementById('receiptModal')) || new bootstrap.Modal(document.getElementById('receiptModal')); modalInstance.hide(); } catch (e) {}
-                    setTimeout(() => { try { newTransaction(); } catch (e) {} }, 200);
+            // Manual print: Create a print window with proper receipt template
+            // Use stored HTML receipt if available, otherwise build from DOM
+            let receiptHtml = '';
+            
+            if (window.__lastReceiptHtml) {
+                // Use the pre-built HTML receipt (includes CSS)
+                receiptHtml = window.__lastReceiptHtml;
+            } else {
+                // Build receipt HTML from DOM element
+                const paper = document.getElementById('receiptPaper');
+                if (!paper) {
+                    showMessage('Receipt data not available. Please complete a transaction first.', 'danger');
                     return;
                 }
-                showMessage('Direct print failed, opening print dialog...', 'warning');
-                // fall through to normal print dialog below
+                
+                // Create print template with proper CSS - matches buildHtmlReceipt exactly
+                const css = `
+                    <style>
+                        @page { 
+                            size: 58mm auto; 
+                            margin: 2mm; 
+                        }
+                        @media print {
+                            @page { 
+                                size: 58mm auto; 
+                                margin: 2mm; 
+                            }
+                        }
+                        * {
+                            margin: 0;
+                            padding: 0;
+                            box-sizing: border-box;
+                        }
+                        html, body { 
+                            width: 58mm; 
+                            padding: 0; 
+                            margin: 0;
+                            font-family: "Courier New", monospace;
+                            background: white;
+                        }
+                        .receipt-paper { 
+                            font-family: "Courier New", monospace; 
+                            font-size: 11pt; 
+                            line-height: 1.4; 
+                            width: 56mm; 
+                            max-width: 56mm; 
+                            margin: 0 auto; 
+                            padding: 2mm;
+                            color: #000 !important;
+                        }
+                        .receipt-paper * { 
+                            color: #000 !important; 
+                            background: transparent !important;
+                        }
+                        .receipt-paper .rp-center { 
+                            text-align: center; 
+                        }
+                        .receipt-paper .rp-title { 
+                            font-weight: 700; 
+                            font-size: 13pt; 
+                            margin: 2mm 0 1mm; 
+                            color: #000 !important;
+                            text-align: center;
+                        }
+                        .receipt-paper .rp-sub { 
+                            font-size: 10pt; 
+                            margin-bottom: 3mm; 
+                            color: #000 !important;
+                            text-align: center;
+                        }
+                        .receipt-paper .rp-line { 
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: baseline;
+                            width: 100%;
+                            margin: 1.5mm 0;
+                            color: #000 !important;
+                        }
+                        .receipt-paper .rp-line span:first-child { 
+                            flex: 1;
+                            text-align: left;
+                            padding-right: 2mm;
+                            word-wrap: break-word;
+                            color: #000 !important;
+                        }
+                        .receipt-paper .rp-line span:last-child { 
+                            flex-shrink: 0;
+                            text-align: right;
+                            white-space: nowrap;
+                            color: #000 !important;
+                        }
+                        .receipt-paper .rp-sep { 
+                            border-top: 1px dashed #000; 
+                            margin: 3mm 0;
+                            width: 100%;
+                        }
+                        .receipt-paper .rp-section-title { 
+                            margin: 2mm 0 1mm 0; 
+                            font-weight: 700;
+                            font-size: 11pt;
+                            color: #000 !important;
+                            text-transform: uppercase;
+                        }
+                        .receipt-paper .rp-items { 
+                            list-style: none; 
+                            padding: 0; 
+                            margin: 0 0 2mm 0; 
+                        }
+                        .receipt-paper .rp-items li { 
+                            margin: 1.5mm 0; 
+                            font-size: 10pt; 
+                            color: #000 !important;
+                        }
+                        .receipt-paper .rp-subline { 
+                            font-size: 9pt; 
+                            color: #000 !important;
+                            line-height: 1.3;
+                        }
+                        .receipt-paper .rp-total { 
+                            font-weight: 700; 
+                            font-size: 12pt; 
+                            color: #c00 !important;
+                            margin-top: 2mm;
+                        }
+                        .receipt-paper .rp-box { 
+                            border: 1px dashed #000; 
+                            padding: 2mm; 
+                            margin: 2mm 0; 
+                            color: #000 !important; 
+                        }
+                        .receipt-paper .rp-thanks { 
+                            margin-top: 3mm; 
+                            font-weight: 700;
+                            font-size: 11pt;
+                            color: #000 !important;
+                            text-align: center;
+                        }
+                    </style>
+                `;
+                receiptHtml = `<!doctype html><html><head><meta charset="utf-8"><title>Receipt</title>${css}</head><body>${paper.outerHTML}</body></html>`;
             }
 
+            // Try to open print window
+            const printWin = window.open('', 'RECEIPT_PRINT', 'width=420,height=600,scrollbars=yes');
+            
+            if (!printWin) {
+                // Popup blocked - fall back to in-page printing
+                showMessage('Popup blocked. Using in-page print...', 'warning');
+                window.__autoPrintReceiptActive = true;
+                document.body.classList.add('print-receipt-only');
+                setTimeout(() => {
+                    try { 
+                        window.print(); 
+                    } catch (e) {
+                        showMessage('Print failed: ' + e.message, 'danger');
+                        document.body.classList.remove('print-receipt-only');
+                        window.__autoPrintReceiptActive = false;
+                    }
+                }, 100);
+                return;
+            }
+
+            // Add print button to the receipt HTML
+            const printButtonHtml = `
+                <div style="text-align: center; padding: 10px; background: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+                    <button id="printBtn" onclick="window.print()" style="
+                        background-color: #007bff;
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        font-size: 16px;
+                        cursor: pointer;
+                        border-radius: 4px;
+                        font-weight: bold;
+                    ">🖨️ Print Receipt</button>
+                    <button id="closeBtn" onclick="window.close()" style="
+                        background-color: #6c757d;
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        font-size: 16px;
+                        cursor: pointer;
+                        border-radius: 4px;
+                        margin-left: 10px;
+                    ">✕ Close</button>
+                </div>
+                <style>
+                    @media print {
+                        #printBtn, #closeBtn { display: none !important; }
+                        div[style*="text-align: center"][style*="padding: 10px"] { display: none !important; }
+                    }
+                </style>
+            `;
+
+            // Extract body content from receiptHtml and add print button
+            let bodyContent = '';
+            const bodyMatch = receiptHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+            if (bodyMatch) {
+                bodyContent = bodyMatch[1];
+            } else {
+                bodyContent = receiptHtml;
+            }
+
+            // Build complete HTML with print button
+            const fullReceiptHtml = receiptHtml.replace(
+                /<body[^>]*>/i,
+                `<body>${printButtonHtml}`
+            ).replace(
+                /<\/body>/i,
+                `<script>
+                    // Auto-focus print button for keyboard accessibility
+                    window.addEventListener('load', function() {
+                        const printBtn = document.getElementById('printBtn');
+                        if (printBtn) {
+                            printBtn.focus();
+                        }
+                    });
+                    
+                    // Handle keyboard shortcuts
+                    document.addEventListener('keydown', function(e) {
+                        // Ctrl+P or Cmd+P to print
+                        if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                            e.preventDefault();
+                            window.print();
+                        }
+                        // Escape to close
+                        if (e.key === 'Escape') {
+                            window.close();
+                        }
+                    });
+                <\/script></body>`
+            );
+
+            // Write receipt HTML to print window
+            printWin.document.open();
+            printWin.document.write(fullReceiptHtml);
+            printWin.document.close();
+            
             // When user clicks Print, treat it like an auto-print action so the modal
             // will be closed and a new transaction started after printing completes.
             window.__autoPrintReceiptActive = true;
-            // Ensure only the receipt is visible for printing
-            document.body.classList.add('print-receipt-only');
 
-            if (!paper) { try { window.print(); } finally { document.body.classList.remove('print-receipt-only'); } return; }
-            const css = `
-                <style>
-                    @page { size: 58mm auto; margin: 2mm; }
-                    html, body { width: 58mm; padding: 0; margin: 0; }
-                    .receipt-paper { font-family: "Courier New", monospace; font-size: 12pt; line-height: 1.45; width: 56mm; max-width: 56mm; margin: 0 auto; color: #000 !important; }
-                    .receipt-paper * { color: #000 !important; }
-                    .receipt-paper .rp-center { text-align: center; }
-                    .receipt-paper .rp-title { font-weight: 700; font-size: 13pt; margin: 2mm 0 1mm; }
-                    .receipt-paper .rp-sub { font-size: 11pt; margin-bottom: 2mm; }
-                    .receipt-paper .rp-line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-                    .receipt-paper .rp-sep { border-top: 1px dashed #000; margin: 2mm 0; }
-                    .receipt-paper .rp-section-title { margin: 1mm 0; font-weight: 700; }
-                    .receipt-paper .rp-items { list-style: none; padding: 0; margin: 0 0 2mm 0; }
-                    .receipt-paper .rp-items li { margin: 1mm 0; }
-                    .receipt-paper .rp-subline { font-size: 10pt; color: #000; }
-                    .receipt-paper .rp-total { font-weight: 700; font-size: 12pt; color: #c00 !important; }
-                    .receipt-paper .rp-box { border: 1px dashed #000; padding: 2mm; margin: 2mm 0; }
-                    .receipt-paper .rp-thanks { margin-top: 2mm; }
-                </style>
-            `;
-            const printWin = window.open('', 'RECEIPT_PRINT', 'width=420,height=600');
-            if (!printWin) { try { window.print(); } finally { document.body.classList.remove('print-receipt-only'); } return; }
-            printWin.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Receipt</title>${css}</head><body>${paper.outerHTML}</body></html>`);
-            printWin.document.close();
-            printWin.focus();
-            // Provide a fallback to close modal/new transaction in case afterprint doesn't fire across windows.
+            // Provide a fallback to close modal/new transaction in case afterprint doesn't fire
             let fallbackFired = false;
             const fallbackTimer = setTimeout(() => {
                 if (window.__autoPrintReceiptActive) {
@@ -1345,32 +1928,61 @@
                     setTimeout(() => { try { newTransaction(); } catch (e) {} }, 200);
                 }
                 try { printWin.close(); } catch (e) {}
-                document.body.classList.remove('print-receipt-only');
-            }, 2500);
+            }, 3000);
 
-            printWin.onload = function() {
-                try { printWin.print(); } catch (e) {}
-                // Try to handle afterprint from the popup if available
+            // Function to trigger print dialog
+            const triggerPrint = () => {
                 try {
-                    printWin.onafterprint = function() {
-                        if (fallbackFired) return;
-                        clearTimeout(fallbackTimer);
-                        if (window.__autoPrintReceiptActive) {
-                            window.__autoPrintReceiptActive = false;
-                            try {
-                                const modalEl = document.getElementById('receiptModal');
-                                const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-                                modalInstance.hide();
-                            } catch (e) { /* ignore */ }
-                            setTimeout(() => { try { newTransaction(); } catch (e) {} }, 200);
+                    printWin.focus();
+                    // Small delay to ensure content is rendered
+                    setTimeout(() => {
+                        try {
+                            printWin.print();
+                        } catch (e) {
+                            console.error('Print error:', e);
+                            showMessage('Failed to open print dialog. Please use Ctrl+P or File > Print in the new window.', 'warning');
                         }
-                        try { printWin.close(); } catch (e) {}
-                        document.body.classList.remove('print-receipt-only');
-                    };
+                    }, 100);
                 } catch (e) {
-                    // ignore
+                    console.error('Focus error:', e);
                 }
             };
+
+            // Wait for content to load, then trigger print
+            if (printWin.document.readyState === 'complete') {
+                triggerPrint();
+            } else {
+                printWin.onload = function() {
+                    triggerPrint();
+                };
+            }
+            
+            // Fallback: if onload doesn't fire, try after a delay
+            setTimeout(() => {
+                if (printWin.document && printWin.document.readyState === 'complete') {
+                    triggerPrint();
+                }
+            }, 500);
+            
+            // Try to handle afterprint from the popup if available
+            try {
+                printWin.onafterprint = function() {
+                    if (fallbackFired) return;
+                    clearTimeout(fallbackTimer);
+                    if (window.__autoPrintReceiptActive) {
+                        window.__autoPrintReceiptActive = false;
+                        try {
+                            const modalEl = document.getElementById('receiptModal');
+                            const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                            modalInstance.hide();
+                        } catch (e) { /* ignore */ }
+                        setTimeout(() => { try { newTransaction(); } catch (e) {} }, 200);
+                    }
+                    try { printWin.close(); } catch (e) {}
+                };
+            } catch (e) {
+                // ignore
+            }
         }
 
         function newTransaction() {
@@ -1524,11 +2136,6 @@
                 el.checked = isAutoPrintEnabled();
                 // Bind change
                 el.addEventListener('change', function() { setAutoPrintEnabled(this.checked); });
-                const d = document.getElementById('directPrintToggle');
-                if (d) {
-                    d.checked = isDirectPrintEnabled();
-                    d.addEventListener('change', function() { setDirectPrintEnabled(this.checked); });
-                }
             } catch (e) { /* ignore */ }
         })();
 
@@ -1555,8 +2162,8 @@
         });
 
         // Auto-trigger printing when the receipt modal is fully shown.
-        // Use in-page `window.print()` together with the `print-receipt-only` CSS class
-        // to avoid popup blockers that can block new windows.
+        // Uses the exact same printReceipt() function as manual print to ensure identical template.
+        // This ensures auto-print fetches and uses the same template as manual printing.
         (function(){
             const modalEl = document.getElementById('receiptModal');
             if (!modalEl) return;
@@ -1564,56 +2171,29 @@
                 if (window.__autoPrintReceipt) {
                     window.__autoPrintReceipt = false;
 
-                    // Try server-side local print first (silent). If it succeeds, close and newTransaction.
-                    // Prefer sending the full HTML receipt when available so silent
-                    // printing produces the same layout as the manual template.
-                    const payload = window.__lastReceiptHtml ? { html: window.__lastReceiptHtml, text: window.__lastReceiptText } : { text: window.__lastReceiptText };
-                    if (window.__lastReceiptHtml || window.__lastReceiptText) {
-                        // If user chose direct print (no dialog), prefer silent server print
-                        if (isDirectPrintEnabled()) {
-                            const ok = await attemptDirectPrint(payload);
-                            if (ok) {
-                                try {
-                                    const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-                                    modalInstance.hide();
-                                } catch (e) { /* ignore */ }
-                                setTimeout(() => { try { newTransaction(); } catch (e) {} }, 200);
-                                return;
-                            }
-                            showMessage('Direct print failed, opening print dialog...', 'warning');
+                    // Always use the exact same printReceipt() function as manual print
+                    // This ensures auto-print uses the same template fetching and printing process
+                    setTimeout(() => {
+                        try {
+                            // printReceipt() fetches the template from window.__lastReceiptHtml
+                            // which is built from the same receiptPaper element used in manual printing
+                            // This guarantees identical template and formatting
+                            printReceipt();
+                        } catch (e) {
+                            console.error('Auto-print error:', e);
+                            // Fallback to in-page print if printReceipt fails
                             window.__autoPrintReceiptActive = true;
                             document.body.classList.add('print-receipt-only');
-                            setTimeout(() => { try { window.print(); } catch (e) {} }, 300);
-                            return;
+                            setTimeout(() => { try { window.print(); } catch (e2) {} }, 300);
                         }
-
-                        // Otherwise behave like before: try silent print then fallback to dialog
-                        const ok2 = await attemptDirectPrint(payload);
-                        if (ok2) {
-                            try {
-                                const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-                                modalInstance.hide();
-                            } catch (e) { /* ignore */ }
-                            setTimeout(() => { try { newTransaction(); } catch (e) {} }, 200);
-                            return;
-                        }
-                        window.__autoPrintReceiptActive = true;
-                        document.body.classList.add('print-receipt-only');
-                        setTimeout(() => { try { window.print(); } catch (e) {} }, 300);
-                        return;
-                    }
-
-                    // Default fallback: in-page print
-                    window.__autoPrintReceiptActive = true;
-                    document.body.classList.add('print-receipt-only');
-                    setTimeout(() => { try { window.print(); } catch (e) {} }, 300);
+                    }, 300);
                 }
             });
         })();
 
         // Auto-logout after 5 minutes of inactivity
         (function() {
-            const INACTIVITY_TIMEOUT = 1 * 60 * 1000; // 5 minutes in milliseconds
+            const INACTIVITY_TIMEOUT = 50 * 60 * 1000; // 5 minutes in milliseconds
             const WARNING_TIME = 30 * 1000; // 30 seconds before logout
             const LOGOUT_URL = '{% url "kiosk_logout" %}';
             let inactivityTimer = null;
