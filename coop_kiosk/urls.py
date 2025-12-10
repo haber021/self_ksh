@@ -54,6 +54,8 @@ urlpatterns = [
     path('refund-receipt/<int:transaction_id>/', admin_panel_views.view_refund_receipt, name='view_refund_receipt'),
     path('cash-receipt/<int:transaction_id>/', admin_panel_views.view_cash_receipt, name='view_cash_receipt'),
     path('debit-credit-receipt/<int:transaction_id>/', admin_panel_views.view_debit_credit_receipt, name='view_debit_credit_receipt'),
+    # Mobile API endpoints
+    path('api/mobile/', include('mobile_api.urls')),
 ]
 
 if settings.DEBUG:

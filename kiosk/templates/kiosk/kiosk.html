@@ -21,9 +21,14 @@
         .kiosk-header { background: linear-gradient(90deg,var(--brand), var(--accent)); color: white; padding: 18px 20px; box-shadow: 0 3px 10px rgba(31,122,58,0.12); }
         .kiosk-header h1{font-weight:700;letter-spacing:0.2px;font-size:1.25rem;margin:0}
         .kiosk-header p{opacity:0.95;margin:0;font-size:0.9rem}
-        .kiosk-header .admin-menu { position: absolute; top: 18px; right: 20px; }
-        .kiosk-header .admin-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; }
-        .kiosk-header .admin-btn:hover { background: rgba(255,255,255,0.3); border-color: rgba(255,255,255,0.5); color: white; transform: translateY(-1px); }
+        .kiosk-header .admin-menu { position: absolute; top: 18px; right: 20px; z-index: 1100; }
+        .kiosk-header .admin-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 0.9rem; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; pointer-events: auto !important; z-index: 1101; position: relative; }
+        .kiosk-header .admin-btn:hover, .kiosk-header .admin-btn:focus { background: rgba(255,255,255,0.3); border-color: rgba(255,255,255,0.5); color: white; transform: translateY(-1px); }
+        .kiosk-header .admin-btn.dropdown-toggle::after { margin-left: 8px; }
+        .kiosk-header .dropdown-menu { background: var(--panel); border: 1px solid rgba(15,63,38,0.1); box-shadow: 0 4px 12px rgba(16,24,40,0.15); border-radius: 8px; margin-top: 8px; min-width: 160px; z-index: 1102; }
+        .kiosk-header .dropdown-item { padding: 10px 16px; color: #222; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px; }
+        .kiosk-header .dropdown-item:hover { background: rgba(31,122,58,0.1); color: var(--accent); }
+        .kiosk-header .dropdown-item i { font-size: 0.9rem; }
         @media (max-width: 768px) {
             .kiosk-header .admin-menu { position: static; margin-top: 12px; }
             .kiosk-header .admin-btn { font-size: 0.85rem; padding: 6px 12px; }
@@ -410,9 +415,18 @@
             <p class="mb-0">Quick, Easy, and Convenient Shopping</p>
         </div>
         <div class="admin-menu">
-            <a href="{% url 'kiosk_logout' %}" class="admin-btn">
-                <i class="bi bi-box-arrow-right"></i> Logout
-            </a>
+            <div class="dropdown">
+                <button class="admin-btn dropdown-toggle" type="button" id="settingsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-gear"></i> Settings
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="settingsDropdown">
+                    <li>
+                        <a class="dropdown-item" href="#" onclick="handleLogout(event); return false;">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </div>
     </div>
 
@@ -484,17 +498,12 @@
                                 <i class="bi bi-wallet2"></i> Debit (Member Account)
                             </button>
                             <button class="btn btn-outline-warning" onclick="preparePayment('credit')">
-                                <i class="bi bi-credit-card"></i> Credit (Utang)
+                                <i class="bi bi-credit-card"></i> Credit
                             </button>
                             <button class="btn btn-outline-primary" onclick="processPayment('cash')">
                                 <i class="bi bi-cash"></i> Cash
                             </button>
                         </div>
-                    </div>
-                    
-                    <div class="form-check form-switch mt-3 mb-3">
-                        <input class="form-check-input" type="checkbox" id="autoPrintToggle">
-                        <label class="form-check-label" for="autoPrintToggle">Auto-print receipt</label>
                     </div>
 
                     <button class="btn btn-danger w-100" onclick="clearCart()">
@@ -618,22 +627,9 @@
         }
 
         const csrftoken = getCookie('csrftoken');
-        // Auto-print toggle storage key and helpers
-        const AUTO_PRINT_KEY = 'kiosk_auto_print_receipt';
-
+        // Always auto-print receipts for every completed transaction
         function isAutoPrintEnabled() {
-            try {
-                const v = localStorage.getItem(AUTO_PRINT_KEY);
-                // default to enabled if not set
-                if (v === null) return true;
-                return v === '1' || v === 'true';
-            } catch (e) { return true; }
-        }
-
-        function setAutoPrintEnabled(on) {
-            try { localStorage.setItem(AUTO_PRINT_KEY, on ? '1' : '0'); } catch (e) {}
-            const el = document.getElementById('autoPrintToggle');
-            if (el) el.checked = !!on;
+            return true;
         }
 
         function scanProduct() {
@@ -926,6 +922,9 @@
             document.getElementById('total').textContent = `₱${total.toFixed(2)}`;
 
             document.getElementById('paymentOptions').style.display = cart.length > 0 ? 'block' : 'none';
+            
+            // Ensure Settings button remains accessible regardless of cart state
+            ensureSettingsAccessible();
         }
 
         function processPayment(method, pin, cashAmount) {
@@ -1391,7 +1390,7 @@
                         ` : '' }
                         ${ transaction.payment_method === 'credit' ? `
                         <div class="rd-payment-row">
-                            <span class="rd-line-label">Credit (Utang):</span>
+                            <span class="rd-line-label">Credit:</span>
                             <span class="rd-line-value">₱${creditAmt.toFixed(2)}</span>
                         </div>
                         ` : '' }
@@ -1405,7 +1404,7 @@
                         </div>
                         ${ transaction.payment_method === 'credit' ? `
                         <div class="rd-member-row">
-                            <span class="rd-line-label">Credit Balance (Utang):</span>
+                            <span class="rd-line-label">Credit Balance:</span>
                             <span class="rd-line-value">₱${parseFloat(memberSummary.utang_after || memberSummary.utang_balance || transaction.new_utang_balance || 0).toFixed(2)}</span>
                         </div>
                         ` : '' }
@@ -1460,13 +1459,13 @@
                     <div class="rp-line"><span>RFID Used:</span><span>₱${rfidUsed.toFixed(2)}</span></div>
                     ` : '' }
                     ${ transaction.payment_method === 'credit' ? `
-                    <div class="rp-line"><span>Credit (Utang):</span><span>₱${creditAmt.toFixed(2)}</span></div>
+                    <div class="rp-line"><span>Credit:</span><span>₱${creditAmt.toFixed(2)}</span></div>
                     ` : '' }
                     ${ memberSummary && transaction.payment_method !== 'cash' ? `
                         <div class="rp-sep"></div>
                         <div class="rp-line"><span> Balance</span><span>₱${parseFloat(memberSummary.balance||memberSummary.available_balance||0).toFixed(2)}</span></div>
                         ${ transaction.payment_method === 'credit' ? `
-                        <div class="rp-line"><span>Credit Balance (Utang):</span><span>₱${parseFloat(memberSummary.utang_after || memberSummary.utang_balance || transaction.new_utang_balance || 0).toFixed(2)}</span></div>
+                        <div class="rp-line"><span>Credit Balance:</span><span>₱${parseFloat(memberSummary.utang_after || memberSummary.utang_balance || transaction.new_utang_balance || 0).toFixed(2)}</span></div>
                         ` : '' }
                     ` : '' }
 
@@ -1524,7 +1523,7 @@
                         lines.push(money(rfidUsed));
                     }
                     if (transaction.payment_method === 'credit') {
-                        lines.push('Credit (Utang):');
+                        lines.push('Credit:');
                         lines.push(money(creditAmt));
                     }
                 }
@@ -1533,7 +1532,7 @@
                     lines.push(' Balance:');
                     lines.push(money(transaction.member.balance || transaction.member.available_balance || 0));
                     if (transaction.payment_method === 'credit') {
-                        lines.push('Credit Balance (Utang):');
+                        lines.push('Credit Balance:');
                         lines.push(money(transaction.member.utang_after || transaction.member.utang_balance || transaction.new_utang_balance || 0));
                     }
                 }
@@ -1684,9 +1683,22 @@
                     window.__lastReceiptHtml = null;
                 }
             })();
-            // Flag to auto-print once the modal is fully shown (respect user setting)
-            window.__autoPrintReceipt = isAutoPrintEnabled();
-            new bootstrap.Modal(document.getElementById('receiptModal')).show();
+            // Flag to auto-print once the modal is fully shown (always enabled)
+            window.__autoPrintReceipt = true; // Always auto-print receipts
+            const receiptModal = new bootstrap.Modal(document.getElementById('receiptModal'));
+            receiptModal.show();
+            
+            // Direct auto-print trigger as backup (in addition to event listener)
+            // This ensures printing happens even if the event listener fails
+            setTimeout(() => {
+                if (window.__autoPrintReceipt) {
+                    try {
+                        printReceipt();
+                    } catch (e) {
+                        console.error('Direct auto-print error:', e);
+                    }
+                }
+            }, 500);
         }
 
         async function printReceipt() {
@@ -2145,17 +2157,6 @@
             // Ensure focus on page load for convenience.
             window.addEventListener('load', () => { rfidEl.focus(); });
         })();
-        // Initialize auto-print toggle state and bind change handler
-        (function(){
-            try {
-                const el = document.getElementById('autoPrintToggle');
-                if (!el) return;
-                // Set initial state
-                el.checked = isAutoPrintEnabled();
-                // Bind change
-                el.addEventListener('change', function() { setAutoPrintEnabled(this.checked); });
-            } catch (e) { /* ignore */ }
-        })();
 
         // Ensure only the receipt prints when user triggers print (Ctrl+P or menu) while receipt is shown
         window.addEventListener('beforeprint', () => {
@@ -2209,9 +2210,43 @@
             });
         })();
 
-        // Auto-logout after 5 minutes of inactivity
+        // Handle logout - always allow logout, but warn if cart has items
+        function handleLogout(event) {
+            event.preventDefault();
+            const logoutUrl = '{% url "kiosk_logout" %}';
+            
+            if (cart.length > 0) {
+                // Show confirmation dialog if cart has items
+                if (confirm('You have items in your cart. Logging out will clear your cart. Do you want to continue?')) {
+                    window.location.href = logoutUrl;
+                }
+            } else {
+                // No items in cart, proceed directly
+                window.location.href = logoutUrl;
+            }
+        }
+
+        // Ensure Settings button is always clickable, regardless of cart state
+        function ensureSettingsAccessible() {
+            const settingsBtn = document.getElementById('settingsDropdown');
+            if (settingsBtn) {
+                settingsBtn.disabled = false;
+                settingsBtn.style.pointerEvents = 'auto';
+                settingsBtn.style.opacity = '1';
+                settingsBtn.style.cursor = 'pointer';
+                // Remove any disabled class
+                settingsBtn.classList.remove('disabled');
+            }
+        }
+
+        // Run on page load to ensure Settings is accessible
+        document.addEventListener('DOMContentLoaded', function() {
+            ensureSettingsAccessible();
+        });
+
+        // Auto-logout after 1 minute of inactivity
         (function() {
-            const INACTIVITY_TIMEOUT = 50 * 60 * 1000; // 5 minutes in milliseconds
+            const INACTIVITY_TIMEOUT = 50 * 60 * 1000; // 1 minute in milliseconds
             const WARNING_TIME = 30 * 1000; // 30 seconds before logout
             const LOGOUT_URL = '{% url "kiosk_logout" %}';
             let inactivityTimer = null;
@@ -2237,13 +2272,13 @@
                 // Clear existing timers
                 clearAllTimers();
                 
-                // Set warning timer (4.5 minutes)
+                // Set warning timer (30 seconds before logout)
                 warningTimer = setTimeout(() => {
                     warningShown = true;
                     showMessage('You will be logged out in 30 seconds due to inactivity.', 'warning', 30000);
                 }, INACTIVITY_TIMEOUT - WARNING_TIME);
                 
-                // Set logout timer (5 minutes)
+                // Set logout timer (1 minute)
                 inactivityTimer = setTimeout(() => {
                     window.location.href = LOGOUT_URL;
                 }, INACTIVITY_TIMEOUT);
