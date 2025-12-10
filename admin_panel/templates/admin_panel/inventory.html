@@ -199,12 +199,12 @@
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0">All Products</h5>
             <div class="d-flex gap-2">
-              <a href="/admin/inventory/product/add/" class="btn btn-success btn-sm rounded-pill">
+              <button type="button" class="btn btn-success btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#addProductModal">
                 <i class="bi bi-plus-circle me-1"></i>Add Product
-              </a>
-              <a href="/admin/inventory/category/" class="btn btn-outline-secondary btn-sm rounded-pill">
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#manageCategoriesModal">
                 <i class="bi bi-tags me-1"></i>Manage Categories
-              </a>
+              </button>
             </div>
           </div>
           <div class="table-responsive">
@@ -272,16 +272,26 @@
                     {% endif %}
                   </td>
                   <td>
-                    <a href="/admin/inventory/product/{{ product.id }}/change/" class="btn btn-sm btn-outline-primary rounded-pill">
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill edit-product-btn" 
+                            data-product-id="{{ product.id }}"
+                            data-product-name="{{ product.name|escapejs }}"
+                            data-product-barcode="{{ product.barcode|escapejs }}"
+                            data-product-category-id="{% if product.category %}{{ product.category.id }}{% endif %}"
+                            data-product-price="{{ product.price }}"
+                            data-product-cost="{{ product.cost|default:0 }}"
+                            data-product-stock="{{ product.stock_quantity }}"
+                            data-product-threshold="{{ product.low_stock_threshold }}"
+                            data-product-description="{{ product.description|escapejs }}"
+                            data-product-active="{{ product.is_active|lower }}">
                       <i class="bi bi-pencil me-1"></i>Edit
-                    </a>
+                    </button>
                   </td>
                 </tr>
                 {% empty %}
                 <tr>
                   <td colspan="7" class="text-center text-muted py-4">
                     <i class="bi bi-inbox me-2"></i>No products found. 
-                    <a href="/admin/inventory/product/add/">Add your first product</a>
+                    <button type="button" class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#addProductModal">Add your first product</button>
                   </td>
                 </tr>
                 {% endfor %}
@@ -297,9 +307,9 @@
         <div class="table-card">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0">Categories</h5>
-            <a href="/admin/inventory/category/add/" class="btn btn-success btn-sm rounded-pill">
+            <button type="button" class="btn btn-success btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#manageCategoriesModal">
               <i class="bi bi-plus-circle me-1"></i>Add Category
-            </a>
+            </button>
           </div>
           <div class="table-responsive">
             <table class="table align-middle">
@@ -334,16 +344,20 @@
                     {% endif %}
                   </td>
                   <td>
-                    <a href="/admin/inventory/category/{{ category.id }}/change/" class="btn btn-sm btn-outline-primary rounded-pill">
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill edit-category-btn"
+                            data-category-id="{{ category.id }}"
+                            data-category-name="{{ category.name|escapejs }}"
+                            data-category-description="{{ category.description|escapejs }}"
+                            data-category-active="{{ category.is_active|lower }}">
                       <i class="bi bi-pencil me-1"></i>Edit
-                    </a>
+                    </button>
                   </td>
                 </tr>
                 {% empty %}
                 <tr>
                   <td colspan="5" class="text-center text-muted py-4">
                     <i class="bi bi-inbox me-2"></i>No categories found. 
-                    <a href="/admin/inventory/category/add/">Add your first category</a>
+                    <button type="button" class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#manageCategoriesModal">Add your first category</button>
                   </td>
                 </tr>
                 {% endfor %}
@@ -353,9 +367,614 @@
         </div>
       </div>
     </section>
+
+    <!-- Add Product Modal -->
+    <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addProductModalLabel"><i class="bi bi-plus-circle me-2"></i>Add Product</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <form id="addProductForm" class="modal-body">
+            <div id="productAlert" style="display:none;"></div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Product Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="productName" placeholder="e.g. Instant Coffee" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Barcode <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="productBarcode" placeholder="Scan or type barcode" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Category</label>
+                <select class="form-select" id="productCategory">
+                  <option value="">Uncategorized</option>
+                  {% for category in categories %}
+                  <option value="{{ category.id }}">{{ category.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Price (₱) <span class="text-danger">*</span></label>
+                <input type="number" class="form-control" id="productPrice" step="0.01" min="0" placeholder="0.00" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Cost (₱)</label>
+                <input type="number" class="form-control" id="productCost" step="0.01" min="0" placeholder="0.00" value="0">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Stock Quantity</label>
+                <input type="number" class="form-control" id="productStock" min="0" step="1" placeholder="0" value="0">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Low Stock Threshold</label>
+                <input type="number" class="form-control" id="productThreshold" min="0" step="1" placeholder="10" value="10">
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold">Description</label>
+                <textarea class="form-control" id="productDescription" rows="2" placeholder="Short description (optional)"></textarea>
+              </div>
+              <div class="col-12">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="productActive" checked>
+                  <label class="form-check-label fw-semibold" for="productActive">
+                    Mark as active and visible in inventory
+                  </label>
+                </div>
+              </div>
+            </div>
+          </form>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" form="addProductForm" class="btn btn-success" id="saveProductBtn">
+              <i class="bi bi-check-circle me-1"></i>Save Product
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manage Categories Modal -->
+    <div class="modal fade" id="manageCategoriesModal" tabindex="-1" aria-labelledby="manageCategoriesModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="manageCategoriesModalLabel"><i class="bi bi-tags me-2"></i>Add Category</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <form id="addCategoryForm" class="modal-body">
+            <div id="categoryAlert" style="display:none;"></div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Category Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="categoryName" placeholder="e.g. Beverages" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Description</label>
+              <textarea class="form-control" id="categoryDescription" rows="2" placeholder="Optional description"></textarea>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="categoryActive" checked>
+              <label class="form-check-label fw-semibold" for="categoryActive">
+                Mark as active
+              </label>
+            </div>
+          </form>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" form="addCategoryForm" class="btn btn-primary" id="saveCategoryBtn">
+              <i class="bi bi-check-circle me-1"></i>Save Category
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Product Modal -->
+    <div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="editProductModalLabel"><i class="bi bi-pencil me-2"></i>Edit Product</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <form id="editProductForm" class="modal-body">
+            <div id="editProductAlert" style="display:none;"></div>
+            <input type="hidden" id="editProductId">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Product Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="editProductName" placeholder="e.g. Instant Coffee" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Barcode <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="editProductBarcode" placeholder="Scan or type barcode" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Category</label>
+                <select class="form-select" id="editProductCategory">
+                  <option value="">Uncategorized</option>
+                  {% for category in categories %}
+                  <option value="{{ category.id }}">{{ category.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Price (₱) <span class="text-danger">*</span></label>
+                <input type="number" class="form-control" id="editProductPrice" step="0.01" min="0" placeholder="0.00" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Cost (₱)</label>
+                <input type="number" class="form-control" id="editProductCost" step="0.01" min="0" placeholder="0.00" value="0">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Stock Quantity</label>
+                <input type="number" class="form-control" id="editProductStock" min="0" step="1" placeholder="0" value="0">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Low Stock Threshold</label>
+                <input type="number" class="form-control" id="editProductThreshold" min="0" step="1" placeholder="10" value="10">
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold">Description</label>
+                <textarea class="form-control" id="editProductDescription" rows="2" placeholder="Short description (optional)"></textarea>
+              </div>
+              <div class="col-12">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="editProductActive" checked>
+                  <label class="form-check-label fw-semibold" for="editProductActive">
+                    Mark as active and visible in inventory
+                  </label>
+                </div>
+              </div>
+            </div>
+          </form>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" form="editProductForm" class="btn btn-success" id="updateProductBtn">
+              <i class="bi bi-check-circle me-1"></i>Update Product
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Category Modal -->
+    <div class="modal fade" id="editCategoryModal" tabindex="-1" aria-labelledby="editCategoryModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="editCategoryModalLabel"><i class="bi bi-pencil me-2"></i>Edit Category</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <form id="editCategoryForm" class="modal-body">
+            <div id="editCategoryAlert" style="display:none;"></div>
+            <input type="hidden" id="editCategoryId">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Category Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="editCategoryName" placeholder="e.g. Beverages" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Description</label>
+              <textarea class="form-control" id="editCategoryDescription" rows="2" placeholder="Optional description"></textarea>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="editCategoryActive" checked>
+              <label class="form-check-label fw-semibold" for="editCategoryActive">
+                Mark as active
+              </label>
+            </div>
+          </form>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" form="editCategoryForm" class="btn btn-primary" id="updateCategoryBtn">
+              <i class="bi bi-check-circle me-1"></i>Update Category
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    (function() {
+      function getCsrfToken() {
+        const token = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        if (token) return token;
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+          const [key, value] = cookie.trim().split('=');
+          if (key === 'csrftoken') return value;
+        }
+        return '';
+      }
+
+      function showInlineAlert(container, message, type = 'success') {
+        if (!container) return;
+        container.className = `alert alert-${type} alert-dismissible fade show`;
+        container.innerHTML = `
+          ${message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        container.style.display = 'block';
+      }
+
+      function setButtonLoading(button, loading, defaultText) {
+        if (!button) return;
+        if (loading) {
+          button.dataset.defaultText = defaultText || button.textContent;
+          button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+          button.disabled = true;
+        } else {
+          button.innerHTML = button.dataset.defaultText || defaultText || 'Save';
+          button.disabled = false;
+        }
+      }
+
+      const csrftoken = getCsrfToken();
+
+      // Product form handler
+      const productForm = document.getElementById('addProductForm');
+      const productAlert = document.getElementById('productAlert');
+      const saveProductBtn = document.getElementById('saveProductBtn');
+      const productModalEl = document.getElementById('addProductModal');
+
+      productForm?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (productAlert) {
+          productAlert.style.display = 'none';
+          productAlert.innerHTML = '';
+          productAlert.className = '';
+        }
+
+        const payload = {
+          name: document.getElementById('productName')?.value.trim(),
+          barcode: document.getElementById('productBarcode')?.value.trim(),
+          category_id: document.getElementById('productCategory')?.value || null,
+          price: document.getElementById('productPrice')?.value,
+          cost: document.getElementById('productCost')?.value || 0,
+          stock_quantity: document.getElementById('productStock')?.value || 0,
+          low_stock_threshold: document.getElementById('productThreshold')?.value || 0,
+          description: document.getElementById('productDescription')?.value || '',
+          is_active: document.getElementById('productActive')?.checked ?? true,
+        };
+
+        if (!payload.name || !payload.barcode || !payload.price) {
+          showInlineAlert(productAlert, 'Name, barcode, and price are required.', 'warning');
+          return;
+        }
+
+        setButtonLoading(saveProductBtn, true, 'Save Product');
+
+        fetch('/api/products/create/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken,
+          },
+          body: JSON.stringify(payload),
+        })
+        .then(async (res) => {
+          const data = await res.json();
+          return { ok: res.ok, status: res.status, data };
+        })
+        .then(({ ok, data }) => {
+          if (ok && data.success) {
+            showInlineAlert(productAlert, 'Product added successfully. Refreshing...', 'success');
+            setTimeout(() => window.location.reload(), 700);
+          } else {
+            const message = data?.error || 'Unable to save product.';
+            showInlineAlert(productAlert, message, 'danger');
+          }
+        })
+        .catch(() => {
+          showInlineAlert(productAlert, 'Server error while saving product.', 'danger');
+        })
+        .finally(() => setButtonLoading(saveProductBtn, false, 'Save Product'));
+      });
+
+      // Category form handler
+      const categoryForm = document.getElementById('addCategoryForm');
+      const categoryAlert = document.getElementById('categoryAlert');
+      const saveCategoryBtn = document.getElementById('saveCategoryBtn');
+      const manageCategoriesModalEl = document.getElementById('manageCategoriesModal');
+
+      categoryForm?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (categoryAlert) {
+          categoryAlert.style.display = 'none';
+          categoryAlert.innerHTML = '';
+          categoryAlert.className = '';
+        }
+
+        const payload = {
+          name: document.getElementById('categoryName')?.value.trim(),
+          description: document.getElementById('categoryDescription')?.value || '',
+          is_active: document.getElementById('categoryActive')?.checked ?? true,
+        };
+
+        if (!payload.name) {
+          showInlineAlert(categoryAlert, 'Category name is required.', 'warning');
+          return;
+        }
+
+        setButtonLoading(saveCategoryBtn, true, 'Save Category');
+
+        fetch('/api/categories/create/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken,
+          },
+          body: JSON.stringify(payload),
+        })
+        .then(async (res) => {
+          const data = await res.json();
+          return { ok: res.ok, status: res.status, data };
+        })
+        .then(({ ok, data }) => {
+          if (ok && data.success) {
+            showInlineAlert(categoryAlert, 'Category added successfully. Refreshing...', 'success');
+            setTimeout(() => window.location.reload(), 700);
+          } else {
+            const message = data?.error || 'Unable to save category.';
+            showInlineAlert(categoryAlert, message, 'danger');
+          }
+        })
+        .catch(() => {
+          showInlineAlert(categoryAlert, 'Server error while saving category.', 'danger');
+        })
+        .finally(() => setButtonLoading(saveCategoryBtn, false, 'Save Category'));
+      });
+
+      // Clear alerts when modals are opened
+      productModalEl?.addEventListener('show.bs.modal', () => {
+        if (productAlert) {
+          productAlert.style.display = 'none';
+          productAlert.innerHTML = '';
+          productAlert.className = '';
+        }
+        productForm?.reset();
+        document.getElementById('productActive').checked = true;
+        document.getElementById('productThreshold').value = '10';
+        document.getElementById('productCost').value = '0';
+        document.getElementById('productStock').value = '0';
+      });
+
+      manageCategoriesModalEl?.addEventListener('show.bs.modal', () => {
+        if (categoryAlert) {
+          categoryAlert.style.display = 'none';
+          categoryAlert.innerHTML = '';
+          categoryAlert.className = '';
+        }
+        categoryForm?.reset();
+        document.getElementById('categoryActive').checked = true;
+      });
+
+      // Function to open Edit Product modal
+      function openEditProductModal(productId, name, barcode, categoryId, price, cost, stock, threshold, description, isActive) {
+        document.getElementById('editProductId').value = productId;
+        document.getElementById('editProductName').value = name || '';
+        document.getElementById('editProductBarcode').value = barcode || '';
+        document.getElementById('editProductCategory').value = categoryId || '';
+        document.getElementById('editProductPrice').value = price || '0';
+        document.getElementById('editProductCost').value = cost || '0';
+        document.getElementById('editProductStock').value = stock || '0';
+        document.getElementById('editProductThreshold').value = threshold || '10';
+        document.getElementById('editProductDescription').value = description || '';
+        document.getElementById('editProductActive').checked = isActive !== false;
+        
+        const editProductAlert = document.getElementById('editProductAlert');
+        if (editProductAlert) {
+          editProductAlert.style.display = 'none';
+          editProductAlert.innerHTML = '';
+          editProductAlert.className = '';
+        }
+        
+        const editProductModal = new bootstrap.Modal(document.getElementById('editProductModal'));
+        editProductModal.show();
+      }
+
+      // Function to open Edit Category modal
+      function openEditCategoryModal(categoryId, name, description, isActive) {
+        document.getElementById('editCategoryId').value = categoryId;
+        document.getElementById('editCategoryName').value = name || '';
+        document.getElementById('editCategoryDescription').value = description || '';
+        document.getElementById('editCategoryActive').checked = isActive !== false;
+        
+        const editCategoryAlert = document.getElementById('editCategoryAlert');
+        if (editCategoryAlert) {
+          editCategoryAlert.style.display = 'none';
+          editCategoryAlert.innerHTML = '';
+          editCategoryAlert.className = '';
+        }
+        
+        const editCategoryModal = new bootstrap.Modal(document.getElementById('editCategoryModal'));
+        editCategoryModal.show();
+      }
+
+      // Event delegation for Edit Product buttons
+      document.addEventListener('click', (e) => {
+        if (e.target.closest('.edit-product-btn')) {
+          const btn = e.target.closest('.edit-product-btn');
+          const isActive = btn.dataset.productActive === 'true' || btn.dataset.productActive === 'True';
+          openEditProductModal(
+            parseInt(btn.dataset.productId),
+            btn.dataset.productName || '',
+            btn.dataset.productBarcode || '',
+            btn.dataset.productCategoryId ? parseInt(btn.dataset.productCategoryId) : null,
+            parseFloat(btn.dataset.productPrice) || 0,
+            parseFloat(btn.dataset.productCost) || 0,
+            parseInt(btn.dataset.productStock) || 0,
+            parseInt(btn.dataset.productThreshold) || 10,
+            btn.dataset.productDescription || '',
+            isActive
+          );
+        }
+      });
+
+      // Event delegation for Edit Category buttons
+      document.addEventListener('click', (e) => {
+        if (e.target.closest('.edit-category-btn')) {
+          const btn = e.target.closest('.edit-category-btn');
+          const isActive = btn.dataset.categoryActive === 'true' || btn.dataset.categoryActive === 'True';
+          openEditCategoryModal(
+            parseInt(btn.dataset.categoryId),
+            btn.dataset.categoryName || '',
+            btn.dataset.categoryDescription || '',
+            isActive
+          );
+        }
+      });
+
+      // Edit Product form handler
+      const editProductForm = document.getElementById('editProductForm');
+      const editProductAlert = document.getElementById('editProductAlert');
+      const updateProductBtn = document.getElementById('updateProductBtn');
+      const editProductModalEl = document.getElementById('editProductModal');
+
+      editProductForm?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (editProductAlert) {
+          editProductAlert.style.display = 'none';
+          editProductAlert.innerHTML = '';
+          editProductAlert.className = '';
+        }
+
+        const productId = document.getElementById('editProductId')?.value;
+        if (!productId) {
+          showInlineAlert(editProductAlert, 'Product ID is missing.', 'danger');
+          return;
+        }
+
+        const payload = {
+          id: parseInt(productId),
+          name: document.getElementById('editProductName')?.value.trim(),
+          barcode: document.getElementById('editProductBarcode')?.value.trim(),
+          category_id: document.getElementById('editProductCategory')?.value || null,
+          price: document.getElementById('editProductPrice')?.value,
+          cost: document.getElementById('editProductCost')?.value || 0,
+          stock_quantity: document.getElementById('editProductStock')?.value || 0,
+          low_stock_threshold: document.getElementById('editProductThreshold')?.value || 0,
+          description: document.getElementById('editProductDescription')?.value || '',
+          is_active: document.getElementById('editProductActive')?.checked ?? true,
+        };
+
+        if (!payload.name || !payload.barcode || !payload.price) {
+          showInlineAlert(editProductAlert, 'Name, barcode, and price are required.', 'warning');
+          return;
+        }
+
+        setButtonLoading(updateProductBtn, true, 'Update Product');
+
+        fetch('/api/products/update/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken,
+          },
+          body: JSON.stringify(payload),
+        })
+        .then(async (res) => {
+          const data = await res.json();
+          return { ok: res.ok, status: res.status, data };
+        })
+        .then(({ ok, data }) => {
+          if (ok && data.success) {
+            showInlineAlert(editProductAlert, 'Product updated successfully. Refreshing...', 'success');
+            setTimeout(() => window.location.reload(), 700);
+          } else {
+            const message = data?.error || 'Unable to update product.';
+            showInlineAlert(editProductAlert, message, 'danger');
+          }
+        })
+        .catch(() => {
+          showInlineAlert(editProductAlert, 'Server error while updating product.', 'danger');
+        })
+        .finally(() => setButtonLoading(updateProductBtn, false, 'Update Product'));
+      });
+
+      // Edit Category form handler
+      const editCategoryForm = document.getElementById('editCategoryForm');
+      const editCategoryAlert = document.getElementById('editCategoryAlert');
+      const updateCategoryBtn = document.getElementById('updateCategoryBtn');
+      const editCategoryModalEl = document.getElementById('editCategoryModal');
+
+      editCategoryForm?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (editCategoryAlert) {
+          editCategoryAlert.style.display = 'none';
+          editCategoryAlert.innerHTML = '';
+          editCategoryAlert.className = '';
+        }
+
+        const categoryId = document.getElementById('editCategoryId')?.value;
+        if (!categoryId) {
+          showInlineAlert(editCategoryAlert, 'Category ID is missing.', 'danger');
+          return;
+        }
+
+        const payload = {
+          id: parseInt(categoryId),
+          name: document.getElementById('editCategoryName')?.value.trim(),
+          description: document.getElementById('editCategoryDescription')?.value || '',
+          is_active: document.getElementById('editCategoryActive')?.checked ?? true,
+        };
+
+        if (!payload.name) {
+          showInlineAlert(editCategoryAlert, 'Category name is required.', 'warning');
+          return;
+        }
+
+        setButtonLoading(updateCategoryBtn, true, 'Update Category');
+
+        fetch('/api/categories/update/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken,
+          },
+          body: JSON.stringify(payload),
+        })
+        .then(async (res) => {
+          const data = await res.json();
+          return { ok: res.ok, status: res.status, data };
+        })
+        .then(({ ok, data }) => {
+          if (ok && data.success) {
+            showInlineAlert(editCategoryAlert, 'Category updated successfully. Refreshing...', 'success');
+            setTimeout(() => window.location.reload(), 700);
+          } else {
+            const message = data?.error || 'Unable to update category.';
+            showInlineAlert(editCategoryAlert, message, 'danger');
+          }
+        })
+        .catch(() => {
+          showInlineAlert(editCategoryAlert, 'Server error while updating category.', 'danger');
+        })
+        .finally(() => setButtonLoading(updateCategoryBtn, false, 'Update Category'));
+      });
+
+      // Clear alerts when edit modals are opened
+      editProductModalEl?.addEventListener('show.bs.modal', () => {
+        if (editProductAlert) {
+          editProductAlert.style.display = 'none';
+          editProductAlert.innerHTML = '';
+          editProductAlert.className = '';
+        }
+      });
+
+      editCategoryModalEl?.addEventListener('show.bs.modal', () => {
+        if (editCategoryAlert) {
+          editCategoryAlert.style.display = 'none';
+          editCategoryAlert.innerHTML = '';
+          editCategoryAlert.className = '';
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
 

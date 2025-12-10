@@ -476,19 +476,21 @@
             <div class="col-md-4">
                 <div class="summary-box">
                     <h4>Order Summary</h4>
-                    <hr>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>VATable Sale:</span>
-                        <strong id="subtotal">₱0.00</strong>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>VAT (12%):</span>
-                        <strong id="vat">₱0.00</strong>
-                    </div>
-                    <hr>
-                    <div class="d-flex justify-content-between mb-3">
-                        <h5>Total:</h5>
-                        <h5 id="total">₱0.00</h5>
+                    <div id="summaryDetails" style="display:none;">
+                        <hr>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>VATable Sale:</span>
+                            <strong id="subtotal">₱0.00</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>VAT (12%):</span>
+                            <strong id="vat">₱0.00</strong>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between mb-3">
+                            <h5>Total:</h5>
+                            <h5 id="total">₱0.00</h5>
+                        </div>
                     </div>
                     
                     <div id="paymentOptions" style="display:none;">
@@ -506,7 +508,7 @@
                         </div>
                     </div>
 
-                    <button class="btn btn-danger w-100" onclick="clearCart()">
+                    <button id="clearCartBtn" class="btn btn-danger w-100" onclick="clearCart()" style="display:none;">
                         <i class="bi bi-x-circle"></i> Cancel / Clear
                     </button>
                 </div>
@@ -922,6 +924,17 @@
             document.getElementById('total').textContent = `₱${total.toFixed(2)}`;
 
             document.getElementById('paymentOptions').style.display = cart.length > 0 ? 'block' : 'none';
+            
+            // Hide/show summary details and Cancel/Clear button based on cart state
+            const summaryDetails = document.getElementById('summaryDetails');
+            if (summaryDetails) {
+                summaryDetails.style.display = cart.length > 0 ? 'block' : 'none';
+            }
+            
+            const clearCartBtn = document.getElementById('clearCartBtn');
+            if (clearCartBtn) {
+                clearCartBtn.style.display = cart.length > 0 ? 'block' : 'none';
+            }
             
             // Ensure Settings button remains accessible regardless of cart state
             ensureSettingsAccessible();

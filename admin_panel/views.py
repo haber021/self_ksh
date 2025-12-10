@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Sum, Count, Avg, Q, F
 from django.db.models.functions import TruncDate
+from django.core.paginator import Paginator
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.urls import reverse
@@ -306,6 +307,489 @@ def inventory_management(request):
 
 
 @login_required
+@require_http_methods(["POST"])
+def api_create_product(request):
+    """Create a product without using the Django admin UI"""
+    if not is_admin_user(request.user):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON payload'}, status=400)
+
+    name = (data.get('name') or '').strip()
+    barcode = (data.get('barcode') or '').strip()
+    description = (data.get('description') or '').strip()
+    category_id = data.get('category_id')
+    is_active = bool(data.get('is_active', True))
+
+    if not name:
+        return JsonResponse({'success': False, 'error': 'Product name is required'}, status=400)
+    if not barcode:
+        return JsonResponse({'success': False, 'error': 'Barcode is required'}, status=400)
+    if Product.objects.filter(barcode=barcode).exists():
+        return JsonResponse({'success': False, 'error': 'A product with this barcode already exists'}, status=400)
+
+    try:
+        price = Decimal(str(data.get('price', '0')))
+        cost = Decimal(str(data.get('cost', '0')))
+    except (InvalidOperation, TypeError):
+        return JsonResponse({'success': False, 'error': 'Invalid price or cost value'}, status=400)
+
+    try:
+        stock_quantity = int(data.get('stock_quantity', 0))
+        low_stock_threshold = int(data.get('low_stock_threshold', 10))
+    except (TypeError, ValueError):
+        return JsonResponse({'success': False, 'error': 'Stock quantities must be whole numbers'}, status=400)
+
+    category = None
+    if category_id:
+        try:
+            category = Category.objects.get(id=category_id)
+        except Category.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Selected category does not exist'}, status=400)
+
+    product = Product.objects.create(
+        name=name,
+        barcode=barcode,
+        description=description,
+        category=category,
+        price=price,
+        cost=cost,
+        stock_quantity=stock_quantity,
+        low_stock_threshold=low_stock_threshold,
+        is_active=is_active,
+    )
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Product created successfully',
+        'product': {
+            'id': product.id,
+            'name': product.name,
+            'barcode': product.barcode,
+            'price': str(product.price),
+            'stock_quantity': product.stock_quantity,
+            'category': product.category.name if product.category else None,
+            'is_active': product.is_active,
+        }
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_create_category(request):
+    """Create a category without using the Django admin UI"""
+    if not is_admin_user(request.user):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON payload'}, status=400)
+
+    name = (data.get('name') or '').strip()
+    description = (data.get('description') or '').strip()
+    is_active = bool(data.get('is_active', True))
+
+    if not name:
+        return JsonResponse({'success': False, 'error': 'Category name is required'}, status=400)
+
+    category = Category.objects.create(
+        name=name,
+        description=description,
+        is_active=is_active,
+    )
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Category created successfully',
+        'category': {
+            'id': category.id,
+            'name': category.name,
+            'description': category.description,
+            'is_active': category.is_active,
+        }
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_update_product(request):
+    """Update a product without using the Django admin UI"""
+    if not is_admin_user(request.user):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON payload'}, status=400)
+
+    product_id = data.get('id')
+    if not product_id:
+        return JsonResponse({'success': False, 'error': 'Product ID is required'}, status=400)
+
+    try:
+        product = Product.objects.get(id=product_id)
+    except Product.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Product not found'}, status=404)
+
+    name = (data.get('name') or '').strip()
+    barcode = (data.get('barcode') or '').strip()
+    description = (data.get('description') or '').strip()
+    category_id = data.get('category_id')
+    is_active = bool(data.get('is_active', True))
+
+    if not name:
+        return JsonResponse({'success': False, 'error': 'Product name is required'}, status=400)
+    if not barcode:
+        return JsonResponse({'success': False, 'error': 'Barcode is required'}, status=400)
+    
+    # Check if barcode is already used by another product
+    if Product.objects.filter(barcode=barcode).exclude(id=product_id).exists():
+        return JsonResponse({'success': False, 'error': 'A product with this barcode already exists'}, status=400)
+
+    try:
+        price = Decimal(str(data.get('price', '0')))
+        cost = Decimal(str(data.get('cost', '0')))
+    except (InvalidOperation, TypeError):
+        return JsonResponse({'success': False, 'error': 'Invalid price or cost value'}, status=400)
+
+    try:
+        stock_quantity = int(data.get('stock_quantity', 0))
+        low_stock_threshold = int(data.get('low_stock_threshold', 10))
+    except (TypeError, ValueError):
+        return JsonResponse({'success': False, 'error': 'Stock quantities must be whole numbers'}, status=400)
+
+    category = None
+    if category_id:
+        try:
+            category = Category.objects.get(id=category_id)
+        except Category.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Selected category does not exist'}, status=400)
+
+    # Update product
+    product.name = name
+    product.barcode = barcode
+    product.description = description
+    product.category = category
+    product.price = price
+    product.cost = cost
+    product.stock_quantity = stock_quantity
+    product.low_stock_threshold = low_stock_threshold
+    product.is_active = is_active
+    product.save()
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Product updated successfully',
+        'product': {
+            'id': product.id,
+            'name': product.name,
+            'barcode': product.barcode,
+            'price': str(product.price),
+            'stock_quantity': product.stock_quantity,
+            'category': product.category.name if product.category else None,
+            'is_active': product.is_active,
+        }
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_update_category(request):
+    """Update a category without using the Django admin UI"""
+    if not is_admin_user(request.user):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON payload'}, status=400)
+
+    category_id = data.get('id')
+    if not category_id:
+        return JsonResponse({'success': False, 'error': 'Category ID is required'}, status=400)
+
+    try:
+        category = Category.objects.get(id=category_id)
+    except Category.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Category not found'}, status=404)
+
+    name = (data.get('name') or '').strip()
+    description = (data.get('description') or '').strip()
+    is_active = bool(data.get('is_active', True))
+
+    if not name:
+        return JsonResponse({'success': False, 'error': 'Category name is required'}, status=400)
+
+    # Update category
+    category.name = name
+    category.description = description
+    category.is_active = is_active
+    category.save()
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Category updated successfully',
+        'category': {
+            'id': category.id,
+            'name': category.name,
+            'description': category.description,
+            'is_active': category.is_active,
+        }
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_create_member_type(request):
+    """Create a member type without the Django admin UI."""
+    if not is_admin_user(request.user):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON payload'}, status=400)
+
+    name = (data.get('name') or '').strip()
+    description = (data.get('description') or '').strip()
+    patronage_rate = data.get('patronage_rate', 0.05)
+    is_active = bool(data.get('is_active', True))
+
+    if not name:
+        return JsonResponse({'success': False, 'error': 'Name is required'}, status=400)
+
+    try:
+        patronage_rate = Decimal(str(patronage_rate))
+        if patronage_rate < 0 or patronage_rate > 1:
+            return JsonResponse({'success': False, 'error': 'Patronage rate must be between 0 and 1'}, status=400)
+    except (InvalidOperation, ValueError):
+        return JsonResponse({'success': False, 'error': 'Invalid patronage rate format'}, status=400)
+
+    member_type = MemberType.objects.create(
+        name=name,
+        description=description,
+        patronage_rate=patronage_rate,
+        is_active=is_active,
+    )
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Member type created successfully',
+        'member_type': {
+            'id': member_type.id,
+            'name': member_type.name,
+            'description': member_type.description,
+            'patronage_rate': str(member_type.patronage_rate),
+            'is_active': member_type.is_active,
+        }
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_update_member_type(request):
+    """Update a member type without the Django admin UI."""
+    if not is_admin_user(request.user):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON payload'}, status=400)
+
+    member_type_id = data.get('id')
+    if not member_type_id:
+        return JsonResponse({'success': False, 'error': 'Member type ID is required'}, status=400)
+
+    try:
+        member_type = MemberType.objects.get(id=member_type_id)
+    except MemberType.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Member type not found'}, status=404)
+
+    name = (data.get('name') or '').strip()
+    description = (data.get('description') or '').strip()
+    patronage_rate = data.get('patronage_rate')
+    is_active = bool(data.get('is_active', member_type.is_active))
+
+    if not name:
+        return JsonResponse({'success': False, 'error': 'Name is required'}, status=400)
+
+    if patronage_rate is not None:
+        try:
+            patronage_rate = Decimal(str(patronage_rate))
+            if patronage_rate < 0 or patronage_rate > 1:
+                return JsonResponse({'success': False, 'error': 'Patronage rate must be between 0 and 1'}, status=400)
+        except (InvalidOperation, ValueError):
+            return JsonResponse({'success': False, 'error': 'Invalid patronage rate format'}, status=400)
+    else:
+        patronage_rate = member_type.patronage_rate
+
+    # Update the member type
+    member_type.name = name
+    member_type.description = description
+    member_type.patronage_rate = patronage_rate
+    member_type.is_active = is_active
+    member_type.save()
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Member type updated successfully',
+        'member_type': {
+            'id': member_type.id,
+            'name': member_type.name,
+            'description': member_type.description,
+            'patronage_rate': str(member_type.patronage_rate),
+            'is_active': member_type.is_active,
+        }
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_create_member(request):
+    """Create a member without redirecting to the admin site."""
+    if not is_admin_user(request.user):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON payload'}, status=400)
+
+    first_name = (data.get('first_name') or '').strip()
+    last_name = (data.get('last_name') or '').strip()
+    rfid = (data.get('rfid') or '').strip()
+    email = (data.get('email') or '').strip() or None
+    phone = (data.get('phone') or '').strip()
+    member_type_id = data.get('member_type_id')
+    role = (data.get('role') or 'member').strip() or 'member'
+    is_active = bool(data.get('is_active', True))
+
+    if not first_name or not last_name:
+        return JsonResponse({'success': False, 'error': 'First and last name are required'}, status=400)
+    if not rfid:
+        return JsonResponse({'success': False, 'error': 'RFID card number is required'}, status=400)
+    if Member.objects.filter(rfid_card_number=rfid).exists():
+        return JsonResponse({'success': False, 'error': 'RFID card number already exists'}, status=400)
+    if email and Member.objects.filter(email=email).exists():
+        return JsonResponse({'success': False, 'error': 'Email already exists'}, status=400)
+
+    member_type = None
+    if member_type_id:
+        try:
+            member_type = MemberType.objects.get(id=member_type_id)
+        except MemberType.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Selected member type does not exist'}, status=400)
+
+    member = Member.objects.create(
+        first_name=first_name,
+        last_name=last_name,
+        rfid_card_number=rfid,
+        email=email,
+        phone=phone,
+        member_type=member_type,
+        role=role if role in dict(Member.ROLE_CHOICES) else 'member',
+        is_active=is_active,
+    )
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Member created successfully',
+        'member': {
+            'id': member.id,
+            'name': member.full_name,
+            'rfid': member.rfid_card_number,
+            'email': member.email or '',
+            'phone': member.phone,
+            'member_type': member.member_type.name if member.member_type else '',
+            'role': member.role,
+            'is_active': member.is_active,
+            'balance': str(member.balance),
+            'utang_balance': str(member.utang_balance),
+        }
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_update_member(request):
+    """Update a member without redirecting to the admin site."""
+    if not is_admin_user(request.user):
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON payload'}, status=400)
+
+    member_id = data.get('member_id')
+    if not member_id:
+        return JsonResponse({'success': False, 'error': 'Member ID is required'}, status=400)
+
+    try:
+        member = Member.objects.get(id=member_id)
+    except Member.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Member not found'}, status=404)
+
+    first_name = (data.get('first_name') or member.first_name).strip()
+    last_name = (data.get('last_name') or member.last_name).strip()
+    rfid = (data.get('rfid') or member.rfid_card_number).strip()
+    email = (data.get('email') or '').strip() or None
+    phone = (data.get('phone') or member.phone).strip()
+    member_type_id = data.get('member_type_id')
+    role = (data.get('role') or member.role).strip()
+    is_active = bool(data.get('is_active', member.is_active))
+
+    if not first_name or not last_name:
+        return JsonResponse({'success': False, 'error': 'First and last name are required'}, status=400)
+    if not rfid:
+        return JsonResponse({'success': False, 'error': 'RFID card number is required'}, status=400)
+
+    if Member.objects.filter(rfid_card_number=rfid).exclude(id=member.id).exists():
+        return JsonResponse({'success': False, 'error': 'RFID card number already exists'}, status=400)
+    if email and Member.objects.filter(email=email).exclude(id=member.id).exists():
+        return JsonResponse({'success': False, 'error': 'Email already exists'}, status=400)
+
+    member_type = None
+    if member_type_id:
+        try:
+            member_type = MemberType.objects.get(id=member_type_id)
+        except MemberType.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Selected member type does not exist'}, status=400)
+
+    member.first_name = first_name
+    member.last_name = last_name
+    member.rfid_card_number = rfid
+    member.email = email
+    member.phone = phone
+    member.member_type = member_type
+    member.role = role if role in dict(Member.ROLE_CHOICES) else member.role
+    member.is_active = is_active
+    member.save()
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Member updated successfully',
+        'member': {
+            'id': member.id,
+            'name': member.full_name,
+            'rfid': member.rfid_card_number,
+            'email': member.email or '',
+            'phone': member.phone,
+            'member_type': member.member_type.name if member.member_type else '',
+            'role': member.role,
+            'is_active': member.is_active,
+            'balance': str(member.balance),
+            'utang_balance': str(member.utang_balance),
+        }
+    })
+
+
+@login_required
 def member_management(request):
     if not is_admin_user(request.user):
         messages.warning(request, 'You do not have permission to access this page.')
@@ -352,17 +836,21 @@ def transaction_history(request):
         return redirect('kiosk_home')
     
     # Get all transactions with related data
-    transactions = Transaction.objects.select_related('member').prefetch_related('items').order_by('-created_at')
+    transactions_qs = Transaction.objects.select_related('member').prefetch_related('items').order_by('-created_at')
+    paginator = Paginator(transactions_qs, 10)
+    page_number = request.GET.get('page', 1)
+    transactions_page = paginator.get_page(page_number)
     
     # Calculate statistics
-    total_transactions = transactions.count()
-    completed_transactions = transactions.filter(status='completed').count()
-    pending_transactions = transactions.filter(status='pending').count()
-    cancelled_transactions = transactions.filter(status='cancelled').count()
-    total_revenue = transactions.filter(status='completed').aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+    total_transactions = transactions_qs.count()
+    completed_transactions = transactions_qs.filter(status='completed').count()
+    pending_transactions = transactions_qs.filter(status='pending').count()
+    cancelled_transactions = transactions_qs.filter(status='cancelled').count()
+    total_revenue = transactions_qs.filter(status='completed').aggregate(Sum('total_amount'))['total_amount__sum'] or 0
     
     context = {
-        'transactions': transactions,
+        'transactions': transactions_page,
+        'page_obj': transactions_page,
         'total_transactions': total_transactions,
         'completed_transactions': completed_transactions,
         'pending_transactions': pending_transactions,

@@ -242,12 +242,12 @@
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0">All Members</h5>
             <div class="d-flex gap-2">
-              <a href="/admin/members/member/add/" class="btn btn-success btn-sm rounded-pill">
+              <button type="button" id="addMemberBtn" class="btn btn-success btn-sm rounded-pill">
                 <i class="bi bi-plus-circle me-1"></i>Add Member
-              </a>
-              <a href="/admin/members/membertype/" class="btn btn-outline-secondary btn-sm rounded-pill">
+              </button>
+              <button type="button" id="manageMemberTypesBtn" class="btn btn-outline-secondary btn-sm rounded-pill">
                 <i class="bi bi-tags me-1"></i>Manage Member Types
-              </a>
+              </button>
             </div>
           </div>
           <div class="table-responsive">
@@ -317,9 +317,22 @@
                   </td>
                   <td>
                     <div class="d-flex gap-1">
-                      <a href="/admin/members/member/{{ member.id }}/change/" class="btn btn-sm btn-outline-primary rounded-pill" title="Edit Member">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary rounded-pill edit-member-btn"
+                        title="Edit Member"
+                        data-id="{{ member.id }}"
+                        data-first-name="{{ member.first_name|escapejs }}"
+                        data-last-name="{{ member.last_name|escapejs }}"
+                        data-email="{{ member.email|default_if_none:''|escapejs }}"
+                        data-phone="{{ member.phone|escapejs }}"
+                        data-rfid="{{ member.rfid_card_number|escapejs }}"
+                        data-member-type="{% if member.member_type %}{{ member.member_type.id }}{% endif %}"
+                        data-role="{{ member.role }}"
+                        data-active="{{ member.is_active }}"
+                      >
                         <i class="bi bi-pencil"></i>
-                      </a>
+                      </button>
                       <button type="button" class="btn btn-sm btn-outline-success rounded-pill" onclick="quickRefill({{ member.id }}, '{{ member.full_name }}', '{{ member.rfid_card_number }}', {{ member.balance }})" title="Quick Refill">
                         <i class="bi bi-wallet2"></i>
                       </button>
@@ -341,6 +354,124 @@
       </div>
     </section>
   </main>
+
+  <!-- Member Form Modal -->
+  <div class="modal fade" id="memberFormModal" tabindex="-1" aria-labelledby="memberFormModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="memberFormModalLabel">Add Member</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="memberFormAlert" style="display:none;"></div>
+          <form id="memberForm">
+            {% csrf_token %}
+            <input type="hidden" id="memberIdInput" />
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">First Name</label>
+                <input type="text" class="form-control" id="memberFirstName" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Last Name</label>
+                <input type="text" class="form-control" id="memberLastName" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" id="memberEmail" placeholder="optional">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Phone</label>
+                <input type="text" class="form-control" id="memberPhone" placeholder="optional">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">RFID Card Number</label>
+                <input type="text" class="form-control" id="memberRfid" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Member Type</label>
+                <select class="form-select" id="memberTypeSelect">
+                  <option value="">No type</option>
+                  {% for mt in member_types %}
+                  <option value="{{ mt.id }}">{{ mt.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Role</label>
+                <select class="form-select" id="memberRole">
+                  <option value="member">Member</option>
+                  <option value="cashier">Cashier</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div class="col-md-6 d-flex align-items-center">
+                <div class="form-check mt-4">
+                  <input class="form-check-input" type="checkbox" id="memberIsActive" checked>
+                  <label class="form-check-label" for="memberIsActive">
+                    Active
+                  </label>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="saveMemberBtn">
+            <i class="bi bi-check-circle me-1"></i>Save Member
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Member Type Modal -->
+  <div class="modal fade" id="memberTypeModal" tabindex="-1" aria-labelledby="memberTypeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-secondary text-white">
+          <h5 class="modal-title" id="memberTypeModalLabel">Add Member Type</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="memberTypeAlert" style="display:none;"></div>
+          <form id="memberTypeForm">
+            {% csrf_token %}
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Name</label>
+                <input type="text" class="form-control" id="memberTypeName" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Patronage Rate (0 - 1)</label>
+                <input type="number" step="0.0001" min="0" max="1" class="form-control" id="memberTypePatronage" value="0.05" required>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" id="memberTypeDescription" rows="2" placeholder="optional"></textarea>
+              </div>
+              <div class="col-12">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="memberTypeIsActive" checked>
+                  <label class="form-check-label" for="memberTypeIsActive">
+                    Active
+                  </label>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="saveMemberTypeBtn">
+            <i class="bi bi-plus-circle me-1"></i>Add Type
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Balance Refill Modal -->
   <div class="modal fade" id="refillBalanceModal" tabindex="-1" aria-labelledby="refillBalanceModalLabel" aria-hidden="true">
@@ -441,6 +572,30 @@
       const submitRefillBtn = document.getElementById('submitRefillBtn');
       const refillAlert = document.getElementById('refillAlert');
       const refillBalanceModal = document.getElementById('refillBalanceModal');
+      const memberFormModal = document.getElementById('memberFormModal');
+      const memberForm = document.getElementById('memberForm');
+      const saveMemberBtn = document.getElementById('saveMemberBtn');
+      const memberFormAlert = document.getElementById('memberFormAlert');
+      const memberModalTitle = document.getElementById('memberFormModalLabel');
+      const memberIdInput = document.getElementById('memberIdInput');
+      const memberFirstName = document.getElementById('memberFirstName');
+      const memberLastName = document.getElementById('memberLastName');
+      const memberEmail = document.getElementById('memberEmail');
+      const memberPhone = document.getElementById('memberPhone');
+      const memberRfid = document.getElementById('memberRfid');
+      const memberTypeSelect = document.getElementById('memberTypeSelect');
+      const memberRole = document.getElementById('memberRole');
+      const memberIsActive = document.getElementById('memberIsActive');
+      const addMemberBtn = document.getElementById('addMemberBtn');
+      const manageMemberTypesBtn = document.getElementById('manageMemberTypesBtn');
+      const memberTypeModal = document.getElementById('memberTypeModal');
+      const memberTypeForm = document.getElementById('memberTypeForm');
+      const saveMemberTypeBtn = document.getElementById('saveMemberTypeBtn');
+      const memberTypeAlert = document.getElementById('memberTypeAlert');
+      const memberTypeName = document.getElementById('memberTypeName');
+      const memberTypeDescription = document.getElementById('memberTypeDescription');
+      const memberTypePatronage = document.getElementById('memberTypePatronage');
+      const memberTypeIsActive = document.getElementById('memberTypeIsActive');
 
       function showAlert(message, type = 'success') {
         refillAlert.className = `alert alert-${type} alert-dismissible fade show`;
@@ -452,6 +607,175 @@
         setTimeout(() => {
           refillAlert.style.display = 'none';
         }, 5000);
+      }
+
+      function showInlineAlert(target, message, type = 'success') {
+        if (!target) return;
+        target.className = `alert alert-${type} alert-dismissible fade show`;
+        target.innerHTML = `
+          ${message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        target.style.display = 'block';
+        setTimeout(() => {
+          target.style.display = 'none';
+        }, 5000);
+      }
+
+      function openMemberModal(mode = 'add', data = {}) {
+        memberForm.reset();
+        memberFormAlert.style.display = 'none';
+        memberIdInput.value = mode === 'edit' ? data.id || '' : '';
+        memberModalTitle.textContent = mode === 'edit' ? 'Edit Member' : 'Add Member';
+
+        memberFirstName.value = data.first_name || '';
+        memberLastName.value = data.last_name || '';
+        memberEmail.value = data.email || '';
+        memberPhone.value = data.phone || '';
+        memberRfid.value = data.rfid || '';
+        memberRole.value = data.role || 'member';
+        memberIsActive.checked = data.is_active !== undefined ? data.is_active === true || data.is_active === 'True' || data.is_active === 'true' || data.is_active === '1' : true;
+        if (memberTypeSelect) {
+          memberTypeSelect.value = data.member_type_id || '';
+        }
+
+        const modal = new bootstrap.Modal(memberFormModal);
+        modal.show();
+      }
+
+      function submitMemberForm() {
+        const payload = {
+          first_name: memberFirstName.value.trim(),
+          last_name: memberLastName.value.trim(),
+          email: memberEmail.value.trim(),
+          phone: memberPhone.value.trim(),
+          rfid: memberRfid.value.trim(),
+          member_type_id: memberTypeSelect.value || null,
+          role: memberRole.value,
+          is_active: memberIsActive.checked,
+        };
+
+        if (!payload.first_name || !payload.last_name) {
+          showInlineAlert(memberFormAlert, 'First and last name are required', 'warning');
+          return;
+        }
+        if (!payload.rfid) {
+          showInlineAlert(memberFormAlert, 'RFID card number is required', 'warning');
+          return;
+        }
+
+        const memberId = memberIdInput.value;
+        const url = memberId ? '/api/members/update/' : '/api/members/create/';
+        if (memberId) {
+          payload.member_id = memberId;
+        }
+
+        saveMemberBtn.disabled = true;
+        saveMemberBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+
+        fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+          },
+          body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            showInlineAlert(memberFormAlert, data.message || 'Saved successfully', 'success');
+            setTimeout(() => window.location.reload(), 800);
+          } else {
+            showInlineAlert(memberFormAlert, data.error || 'Unable to save member', 'danger');
+            saveMemberBtn.disabled = false;
+            saveMemberBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Save Member';
+          }
+        })
+        .catch(() => {
+          showInlineAlert(memberFormAlert, 'Server error while saving member', 'danger');
+          saveMemberBtn.disabled = false;
+          saveMemberBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Save Member';
+        });
+      }
+
+      function submitMemberTypeForm() {
+        const payload = {
+          name: memberTypeName.value.trim(),
+          description: memberTypeDescription.value.trim(),
+          patronage_rate: memberTypePatronage.value,
+          is_active: memberTypeIsActive.checked,
+        };
+
+        if (!payload.name) {
+          showInlineAlert(memberTypeAlert, 'Name is required', 'warning');
+          return;
+        }
+
+        saveMemberTypeBtn.disabled = true;
+        saveMemberTypeBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+
+        fetch('/api/member-types/create/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+          },
+          body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            showInlineAlert(memberTypeAlert, data.message || 'Member type saved', 'success');
+            setTimeout(() => window.location.reload(), 800);
+          } else {
+            showInlineAlert(memberTypeAlert, data.error || 'Unable to save member type', 'danger');
+            saveMemberTypeBtn.disabled = false;
+            saveMemberTypeBtn.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Add Type';
+          }
+        })
+        .catch(() => {
+          showInlineAlert(memberTypeAlert, 'Server error while saving member type', 'danger');
+          saveMemberTypeBtn.disabled = false;
+          saveMemberTypeBtn.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Add Type';
+        });
+      }
+
+      if (addMemberBtn) {
+        addMemberBtn.addEventListener('click', () => openMemberModal('add'));
+      }
+
+      if (manageMemberTypesBtn) {
+        manageMemberTypesBtn.addEventListener('click', () => {
+          memberTypeForm.reset();
+          memberTypeAlert.style.display = 'none';
+          const modal = new bootstrap.Modal(memberTypeModal);
+          modal.show();
+        });
+      }
+
+      document.querySelectorAll('.edit-member-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          openMemberModal('edit', {
+            id: btn.dataset.id,
+            first_name: btn.dataset.firstName,
+            last_name: btn.dataset.lastName,
+            email: btn.dataset.email,
+            phone: btn.dataset.phone,
+            rfid: btn.dataset.rfid,
+            member_type_id: btn.dataset.memberType,
+            role: btn.dataset.role,
+            is_active: btn.dataset.active,
+          });
+        });
+      });
+
+      if (saveMemberBtn) {
+        saveMemberBtn.addEventListener('click', submitMemberForm);
+      }
+
+      if (saveMemberTypeBtn) {
+        saveMemberTypeBtn.addEventListener('click', submitMemberTypeForm);
       }
 
       function searchMembers(query) {

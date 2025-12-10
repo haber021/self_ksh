@@ -235,12 +235,9 @@
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0">Member Types & Patronage Rates</h5>
             <div class="d-flex gap-2">
-              <a href="/admin/members/membertype/add/" class="btn btn-success btn-sm rounded-pill">
+              <button type="button" class="btn btn-success btn-sm rounded-pill" onclick="openAddMemberTypeModal()">
                 <i class="bi bi-plus-circle me-1"></i>Add Member Type
-              </a>
-              <a href="/admin/members/membertype/" class="btn btn-outline-secondary btn-sm rounded-pill">
-                <i class="bi bi-gear me-1"></i>Manage in Admin
-              </a>
+              </button>
             </div>
           </div>
           <div class="table-responsive">
@@ -321,11 +318,12 @@
                               id="edit-btn-{{ member_type.id }}">
                         <i class="bi bi-pencil"></i> Edit Rate
                       </button>
-                      <a href="/admin/members/membertype/{{ member_type.id }}/change/" 
-                         class="btn btn-sm btn-outline-secondary rounded-pill" 
-                         title="Edit in Admin">
+                      <button type="button" 
+                              class="btn btn-sm btn-outline-secondary rounded-pill" 
+                              onclick="openEditMemberTypeModal({{ member_type.id }}, '{{ member_type.name|escapejs }}', '{{ member_type.description|escapejs }}', {{ member_type.patronage_rate }}, {{ member_type.is_active|yesno:"true,false" }})"
+                              title="Edit Member Type">
                         <i class="bi bi-gear"></i>
-                      </a>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -333,7 +331,7 @@
                 <tr>
                   <td colspan="6" class="text-center text-muted py-4">
                     <i class="bi bi-inbox me-2"></i>No member types found. 
-                    <a href="/admin/members/membertype/add/">Add your first member type</a>
+                    <button type="button" class="btn btn-link p-0" onclick="openAddMemberTypeModal()">Add your first member type</button>
                   </td>
                 </tr>
                 {% endfor %}
@@ -351,6 +349,99 @@
       Changes to patronage rates will only affect future transactions.
     </div>
   </main>
+
+  <!-- Add Member Type Modal -->
+  <div class="modal fade" id="addMemberTypeModal" tabindex="-1" aria-labelledby="addMemberTypeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addMemberTypeModalLabel">
+            <i class="bi bi-plus-circle me-2"></i>Add Member Type
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="addMemberTypeAlert" class="alert d-none" role="alert"></div>
+          <form id="addMemberTypeForm">
+            <div class="mb-3">
+              <label for="addMemberTypeName" class="form-label">Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="addMemberTypeName" required>
+            </div>
+            <div class="mb-3">
+              <label for="addMemberTypeDescription" class="form-label">Description</label>
+              <textarea class="form-control" id="addMemberTypeDescription" rows="3"></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="addMemberTypePatronageRate" class="form-label">Patronage Rate (0 - 1) <span class="text-danger">*</span></label>
+              <input type="number" step="0.0001" min="0" max="1" class="form-control" id="addMemberTypePatronageRate" value="0.05" required>
+              <small class="form-text text-muted">Enter as decimal (e.g., 0.05 for 5%)</small>
+            </div>
+            <div class="mb-3">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="addMemberTypeIsActive" checked>
+                <label class="form-check-label" for="addMemberTypeIsActive">
+                  Active
+                </label>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-success" onclick="submitAddMemberType()">
+            <i class="bi bi-check-circle me-1"></i>Create Member Type
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Member Type Modal -->
+  <div class="modal fade" id="editMemberTypeModal" tabindex="-1" aria-labelledby="editMemberTypeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editMemberTypeModalLabel">
+            <i class="bi bi-pencil me-2"></i>Edit Member Type
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="editMemberTypeAlert" class="alert d-none" role="alert"></div>
+          <form id="editMemberTypeForm">
+            <input type="hidden" id="editMemberTypeId">
+            <div class="mb-3">
+              <label for="editMemberTypeName" class="form-label">Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="editMemberTypeName" required>
+            </div>
+            <div class="mb-3">
+              <label for="editMemberTypeDescription" class="form-label">Description</label>
+              <textarea class="form-control" id="editMemberTypeDescription" rows="3"></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="editMemberTypePatronageRate" class="form-label">Patronage Rate (0 - 1) <span class="text-danger">*</span></label>
+              <input type="number" step="0.0001" min="0" max="1" class="form-control" id="editMemberTypePatronageRate" required>
+              <small class="form-text text-muted">Enter as decimal (e.g., 0.05 for 5%)</small>
+            </div>
+            <div class="mb-3">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="editMemberTypeIsActive">
+                <label class="form-check-label" for="editMemberTypeIsActive">
+                  Active
+                </label>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="submitEditMemberType()">
+            <i class="bi bi-check-circle me-1"></i>Update Member Type
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
@@ -470,6 +561,150 @@
           alertDiv.remove();
         }
       }, 3000);
+    }
+
+    function showModalAlert(alertId, message, type = 'success') {
+      const alertDiv = document.getElementById(alertId);
+      alertDiv.className = `alert alert-${type}`;
+      alertDiv.textContent = message;
+      alertDiv.classList.remove('d-none');
+      setTimeout(() => {
+        alertDiv.classList.add('d-none');
+      }, 5000);
+    }
+
+    function openAddMemberTypeModal() {
+      const modal = new bootstrap.Modal(document.getElementById('addMemberTypeModal'));
+      document.getElementById('addMemberTypeForm').reset();
+      document.getElementById('addMemberTypePatronageRate').value = '0.05';
+      document.getElementById('addMemberTypeIsActive').checked = true;
+      document.getElementById('addMemberTypeAlert').classList.add('d-none');
+      modal.show();
+    }
+
+    function openEditMemberTypeModal(id, name, description, patronageRate, isActive) {
+      const modal = new bootstrap.Modal(document.getElementById('editMemberTypeModal'));
+      document.getElementById('editMemberTypeId').value = id;
+      document.getElementById('editMemberTypeName').value = name;
+      document.getElementById('editMemberTypeDescription').value = description || '';
+      document.getElementById('editMemberTypePatronageRate').value = parseFloat(patronageRate).toFixed(4);
+      document.getElementById('editMemberTypeIsActive').checked = isActive;
+      document.getElementById('editMemberTypeAlert').classList.add('d-none');
+      modal.show();
+    }
+
+    function submitAddMemberType() {
+      const name = document.getElementById('addMemberTypeName').value.trim();
+      const description = document.getElementById('addMemberTypeDescription').value.trim();
+      const patronageRate = parseFloat(document.getElementById('addMemberTypePatronageRate').value);
+      const isActive = document.getElementById('addMemberTypeIsActive').checked;
+      const alertDiv = document.getElementById('addMemberTypeAlert');
+      const submitBtn = event.target;
+
+      if (!name) {
+        showModalAlert('addMemberTypeAlert', 'Name is required', 'danger');
+        return;
+      }
+
+      if (isNaN(patronageRate) || patronageRate < 0 || patronageRate > 1) {
+        showModalAlert('addMemberTypeAlert', 'Patronage rate must be between 0 and 1', 'danger');
+        return;
+      }
+
+      const originalHtml = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creating...';
+
+      fetch('/api/member-types/create/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({
+          name: name,
+          description: description,
+          patronage_rate: patronageRate,
+          is_active: isActive
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          showModalAlert('addMemberTypeAlert', data.message || 'Member type created successfully', 'success');
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        } else {
+          showModalAlert('addMemberTypeAlert', data.error || 'Failed to create member type', 'danger');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalHtml;
+        }
+      })
+      .catch(err => {
+        console.error('Error:', err);
+        showModalAlert('addMemberTypeAlert', 'Error creating member type. Please try again.', 'danger');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalHtml;
+      });
+    }
+
+    function submitEditMemberType() {
+      const id = document.getElementById('editMemberTypeId').value;
+      const name = document.getElementById('editMemberTypeName').value.trim();
+      const description = document.getElementById('editMemberTypeDescription').value.trim();
+      const patronageRate = parseFloat(document.getElementById('editMemberTypePatronageRate').value);
+      const isActive = document.getElementById('editMemberTypeIsActive').checked;
+      const alertDiv = document.getElementById('editMemberTypeAlert');
+      const submitBtn = event.target;
+
+      if (!name) {
+        showModalAlert('editMemberTypeAlert', 'Name is required', 'danger');
+        return;
+      }
+
+      if (isNaN(patronageRate) || patronageRate < 0 || patronageRate > 1) {
+        showModalAlert('editMemberTypeAlert', 'Patronage rate must be between 0 and 1', 'danger');
+        return;
+      }
+
+      const originalHtml = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Updating...';
+
+      fetch('/api/member-types/update/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({
+          id: id,
+          name: name,
+          description: description,
+          patronage_rate: patronageRate,
+          is_active: isActive
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          showModalAlert('editMemberTypeAlert', data.message || 'Member type updated successfully', 'success');
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        } else {
+          showModalAlert('editMemberTypeAlert', data.error || 'Failed to update member type', 'danger');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalHtml;
+        }
+      })
+      .catch(err => {
+        console.error('Error:', err);
+        showModalAlert('editMemberTypeAlert', 'Error updating member type. Please try again.', 'danger');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalHtml;
+      });
     }
   </script>
 </body>
